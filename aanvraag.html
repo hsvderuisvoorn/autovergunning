@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aanvraag autovergunning | HSV De Ruisvoorn</title>
+<meta name="description" content="Vraag een autovergunning aan bij HSV De Ruisvoorn. Invalidenkaart is minimaal verplicht. Werkt ook offline: de aanvraag wordt bewaard en automatisch verzonden.">
+<link rel="icon" href="./logo.png" type="image/png">
+<meta name="theme-color" content="#1b5e20">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<header class="kop-balk">
+  <div class="kop-inner">
+    <h1>autovergunning <span>HSV De Ruisvoorn</span></h1>
+  </div>
+  <img src="./logo.png" alt="HSV De Ruisvoorn logo" class="kop-logo">
+</header>
+
+<main class="inhoud">
+  <section class="intro-blok">
+    <h2>Aanvragen is zo geregeld</h2>
+    <p>Vul onderstaand formulier in om een autovergunning aan te vragen. Bekijk vooraf de <strong>voorwaarden</strong>; een <strong>geldige invalidenkaart is minimaal verplicht</strong> voor een aanvraag.</p>
+    <p><strong>Geen verbinding?</strong> Geen probleem — uw aanvraag wordt op uw telefoon bewaard en automatisch verzonden zodra u weer online bent.</p>
+  </section>
+
+  <form id="aanvraagForm" novalidate>
+
+    <fieldset>
+      <legend>Gegevens aanvrager</legend>
+      <div class="veld-inner">
+
+        <div class="veld-groep">
+          <label for="datumAanvraag">Datum aanvraag <span class="verplicht-ster">*</span></label>
+          <input type="date" id="datumAanvraag" name="datumAanvraag" required>
+        </div>
+
+        <div class="veld-groep">
+          <label for="voorletters">Voorletters <span class="verplicht-ster">*</span></label>
+          <input type="text" id="voorletters" name="voorletters" autocomplete="honorific-prefix" placeholder="bijv. J.P." required>
+        </div>
+
+        <div class="veld-groep">
+          <label for="voornaam">Voornaam <span class="verplicht-ster">*</span></label>
+          <input type="text" id="voornaam" name="voornaam" autocomplete="given-name" required>
+        </div>
+
+        <div class="veld-groep">
+          <label for="achternaam">Achternaam <span class="verplicht-ster">*</span></label>
+          <input type="text" id="achternaam" name="achternaam" autocomplete="family-name" required>
+        </div>
+
+        <div class="veld-groep">
+          <label for="geboortedatum">Geboortedatum <span class="verplicht-ster">*</span></label>
+          <input type="date" id="geboortedatum" name="geboortedatum" required>
+        </div>
+
+        <div class="veld-groep">
+          <label for="vispasnummer">Vispasnummer <span class="verplicht-ster">*</span></label>
+          <input type="text" id="vispasnummer" name="vispasnummer" autocomplete="off" required>
+        </div>
+
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Invalidenkaart</legend>
+      <div class="veld-inner">
+
+        <div class="veld-groep">
+          <span class="veld-titel">Heeft u een invalidenkaart? <span class="verplicht-ster">*</span></span>
+          <div class="radio-lijst">
+            <label class="radio-optie"><input type="radio" name="invalidenkaart" value="ja"> Ja</label>
+            <label class="radio-optie"><input type="radio" name="invalidenkaart" value="nee"> Nee</label>
+          </div>
+        </div>
+
+        <div class="veld-groep" id="geenInvalideBericht" hidden>
+          <p class="blokkeer-fout">Een invalidenkaart is minimaal verplicht voor een aanvraag voor een autovergunning.<br><strong>U komt niet in aanmerking voor een autovergunning.</strong></p>
+        </div>
+
+        <div class="veld-groep" id="invalideGroep" hidden>
+          <label for="invalidenkaartNummer">Nummer invalidenkaart <span class="verplicht-ster">*</span></label>
+          <input type="text" id="invalidenkaartNummer" name="invalidenkaartNummer" autocomplete="off" placeholder="Vul het nummer van uw invalidenkaart in">
+        </div>
+
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Akkoord en voorwaarden</legend>
+      <div class="veld-inner">
+
+        <div class="veld-groep">
+          <span class="veld-titel">Akkoord met de voorwaarden? <span class="verplicht-ster">*</span></span>
+          <div class="radio-lijst">
+            <label class="radio-optie"><input type="radio" name="voorwaardenRadio" value="ja"> Ja, ik ga akkoord</label>
+            <label class="radio-optie"><input type="radio" name="voorwaardenRadio" value="nee"> Nee</label>
+          </div>
+          <p id="voorwaardenRadioFout" class="veld-fout" hidden>Het is minimaal verplicht om de voorwaarden te accepteren om de aanvraag te kunnen doorsturen.</p>
+        </div>
+
+        <div class="veld-groep">
+          <label class="akkoord-optie">
+            <input type="checkbox" id="borgAkkoord" name="borgAkkoord">
+            <span>Ik ga akkoord dat er <strong>&euro;25 borg voor de sleutel</strong> in rekening wordt gebracht. <span class="verplicht-ster">*</span></span>
+          </label>
+          <p id="borgAkkoordFout" class="veld-fout" hidden>U komt niet in aanmerking: het akkoord dat er &euro;25 borg voor de sleutel in rekening wordt gebracht is minimaal verplicht.</p>
+        </div>
+
+        <div class="veld-groep">
+          <label class="akkoord-optie">
+            <input type="checkbox" id="avgAkkoord" name="avgAkkoord">
+            <span>Ik ga akkoord dat HSV De Ruisvoorn mijn gegevens gebruikt om deze aanvraag te verwerken, conform de AVG. <span class="verplicht-ster">*</span></span>
+          </label>
+          <p id="avgAkkoordFout" class="veld-fout" hidden>Het akkoord met de AVG is minimaal verplicht om de aanvraag te kunnen verzenden.</p>
+        </div>
+
+        <div class="veld-groep">
+          <label class="akkoord-optie">
+            <input type="checkbox" id="voorwaardenCheckbox" name="voorwaardenCheckbox">
+            <span>Ik ga akkoord met de voorwaarden van de autovergunning. <span class="verplicht-ster">*</span></span>
+          </label>
+          <p id="voorwaardenCheckboxFout" class="veld-fout" hidden>Het accepteren van de voorwaarden is minimaal verplicht om de aanvraag te kunnen verzenden.</p>
+        </div>
+
+      </div>
+    </fieldset>
+
+    <div class="verstuur-balk">
+      <button type="submit" id="verstuurBtn">Aanvraag versturen</button>
+      <p id="statusTekst">Nog niet verzonden.</p>
+    </div>
+
+  </form>
+
+  <section id="geluktPagina" class="bedankt-pagina" hidden>
+    <div class="bedankt-inhoud">
+      <h2 class="bedankt-titel">Aanvraag ontvangen</h2>
+      <p>Uw aanvraag voor een autovergunning is in goede orde ontvangen en wordt door ons beoordeeld.</p>
+      <div class="belangrijk">
+        <p>Let op: toekenning is pas definitief na goedkeuring. De borg van &euro;25 voor de sleutel wordt pas bij toekenning in rekening gebracht.</p>
+      </div>
+      <p>Heeft u vragen? Stuur die naar <a href="mailto:secretariaat@hsvderuisvoorn.nl">secretariaat@hsvderuisvoorn.nl</a>.</p>
+    </div>
+  </section>
+</main>
+
+<footer class="voet">
+  <p>&copy; HSV De Ruisvoorn &mdash; Autovergunning</p>
+</footer>
+
+<script src="./aanvraag.js" defer></script>
+</body>
+</html>

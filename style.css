@@ -1,0 +1,297 @@
+/* ============================================================
+   Aanmelding jeugdviscursus - style.css
+   Donkergroen thema (huisstijl algemene hengelsportvereniging).
+   Zelfstandig en offline klaar voor de webapp.
+   ============================================================ */
+
+:root {
+  --hoofd-groen:        #1b5e20;   /* donkergroen (hoofdkleur)    */
+  --hoofd-groen-donker: #0d3b10;   /* nóg donkerder voor hover    */
+  --achtergrond:        #f2f7ec;   /* hele-app achtergrond        */
+  --wit:                #ffffff;
+  --tekst:              #1c2b1c;   /* bijna-zwarte tekst          */
+  --tekst-zacht:        #4a5d4a;   /* grijze hulptekst            */
+  --rand:               #c9dcba;   /* lichte groene randen        */
+  --fout:               #b3261e;   /* fout/verplicht             */
+  --ok:                 #1b5e20;   /* succes                      */
+  --info:               #0d47a1;   /* info/offline                */
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  line-height: 1.55;
+  color: var(--tekst);
+  background: var(--achtergrond);
+}
+
+/* ================= KOP ================= */
+.kop-balk {
+  background: var(--hoofd-groen);
+  color: var(--wit);
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+}
+.kop-balk h1 { margin: 0; font-size: 1.35rem; }
+.kop-balk h1 span { display: block; font-size: 0.8em; opacity: 0.85; font-weight: normal; }
+.kop-balk p  { margin: 0.2rem 0 0; font-size: 0.9rem; opacity: 0.9; }
+.kop-logo {
+  height: 3.4rem;
+  width: auto;
+  border-radius: 8px;
+  background: #fff;
+  padding: 3px;
+}
+
+/* ================= INHOUD ================= */
+.inhoud {
+  max-width: 44rem;
+  margin: 1rem auto 2rem;
+  padding: 0 1rem;
+}
+
+.intro-blok {
+  background: var(--wit);
+  border: 1px solid var(--rand);
+  border-left: 0.4rem solid var(--hoofd-groen);
+  border-radius: 0.5rem;
+  padding: 0.9rem 1.1rem;
+}
+.intro-blok h2 { margin: 0 0 0.4rem; font-size: 1.12rem; }
+.intro-blok p  { margin: 0.3rem 0; font-size: 0.95rem; }
+
+/* ================= START: HOE WERKT HET? ================= */
+.hoe-werkt-blok {
+  background: var(--wit);
+  border: 1px solid var(--rand);
+  border-left: 0.4rem solid var(--hoofd-groen);
+  border-radius: 0.5rem;
+  padding: 1.3rem 1.4rem 1.5rem;
+  text-align: center;
+}
+.hoe-werkt-blok h2 {
+  margin: 0 0 0.7rem;
+  font-size: 1.55rem;
+  color: var(--hoofd-groen);
+}
+.hoe-werkt-lijst {
+  max-width: 30rem;
+  margin: 0 auto 1.1rem;
+  text-align: left;
+  font-size: 1.08rem;
+  line-height: 1.6;
+  padding-left: 1.4rem;
+}
+.hoe-werkt-lijst li { margin: 0.5rem 0; }
+
+.knop-primair {
+  display: inline-block;
+  background: var(--hoofd-groen);
+  color: var(--wit);
+  text-decoration: none;
+  font-weight: 700;
+  border-radius: 0.55rem;
+  text-align: center;
+}
+.knop-primair:hover,
+.knop-primair:focus {
+  background: var(--hoofd-groen-donker);
+}
+.knop-groot {
+  padding: 0.95rem 2.2rem;
+  font-size: 1.25rem;
+}
+.cta-regel { margin: 0 0 0.5rem; }
+
+.hulp-klein {
+  font-size: 0.85rem;
+  color: var(--tekst-zacht);
+  margin: 0.6rem 0 0;
+}
+
+/* ================= FORMULIER ================= */
+form#opgaveForm { margin: 0; }
+
+.veld-set {
+  background: var(--wit);
+  border: 1px solid var(--rand);
+  border-radius: 0.5rem;
+  margin: 0 0 1rem 0;
+  padding: 0; /* padding op legend/innerlijke groepen */
+}
+fieldset legend {
+  font-weight: 700;
+}
+
+.veld-set legend {
+  font-weight: 700;
+  color: var(--hoofd-groen);
+  background: var(--achtergrond);
+  border: 1px solid var(--rand);
+  border-bottom: none;
+  border-radius: 0.4rem 0.4rem 0 0;
+  padding: 0.45rem 0.9rem;
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.veld-inner { padding: 0.6rem 1.1rem 1rem; }
+
+.veld-groep { margin: 0.85rem 0; }
+
+.veld-groep > label,
+.veld-groep .veld-titel {
+  display: block;
+  font-weight: 600;
+  font-size: 0.92rem;
+  margin-bottom: 0.25rem;
+}
+
+.verplicht-ster { color: var(--fout); font-weight: 700; }
+
+input[type="text"],
+input[type="date"],
+input[type="tel"],
+input[type="email"],
+select,
+textarea {
+  width: 100%;
+  padding: 0.55rem 0.6rem;
+  border: 1px solid var(--rand);
+  border-radius: 0.4rem;
+  font: inherit;
+  color: var(--tekst);
+  background: var(--wit);
+}
+textarea { resize: vertical; min-height: 4.5rem; }
+input:focus, select:focus, textarea:focus {
+  outline: 2px solid var(--hoofd-groen);
+  outline-offset: 1px;
+}
+
+/* radio-regels */
+.radio-lijst { display: flex; flex-wrap: wrap; gap: 0.4rem 1.6rem; }
+.radio-optie {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 400;
+  font-size: 0.95rem;
+}
+
+/* hulptekst onder een veld */
+.hulp-tekst {
+  font-size: 0.8rem;
+  color: var(--tekst-zacht);
+  margin: 0.3rem 0 0;
+}
+
+/* akkoord-checkbox plus uitgevulde uitleg */
+.akkoord-optie {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+  font-size: 0.92rem;
+  font-weight: 400;
+}
+.akkoord-optie input[type="checkbox"] { margin-top: 0.2rem; }
+
+/* ================= VERSTUURKNOP + STATUS ================= */
+.verstuur-balk { text-align: center; margin: 1.2rem 0 0.4rem; }
+
+button#verstuurBtn {
+  background: var(--hoofd-groen);
+  color: var(--wit);
+  border: 1px solid var(--hoofd-groen);
+  border-radius: 0.45rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  padding: 0.8rem 1.7rem;
+  cursor: pointer;
+}
+button#verstuurBtn:hover { background: var(--hoofd-groen-donker); }
+button#verstuurBtn:disabled {
+  background: var(--rand);
+  border-color: var(--rand);
+  cursor: not-allowed;
+}
+
+#statusTekst {
+  margin-top: 0.8rem;
+  font-size: 0.92rem;
+  border-radius: 0.4rem;
+  padding: 0.6rem 0.9rem;
+  display: none;
+}
+#statusTekst.zichtbaar { display: block; }
+#statusTekst.fout { background: #fbe4e2; border: 1px solid #f3b5b1; color: var(--fout); }
+
+.veld-fout {
+  margin-top: 0.4rem;
+  font-size: 0.88rem;
+  color: var(--fout);
+  background: #fbe4e2;
+  border-left: 3px solid var(--fout);
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.3rem;
+}
+.veld-fout[hidden] { display: none; }
+#statusTekst.ok   { background: #e4f2de; border: 1px solid #bcd8af; color: var(--ok); }
+#statusTekst.info { background: #e4edfa; border: 1px solid #b7cceb; color: var(--info); }
+
+/* ================= BEDANKTPAGINA ================= */
+.bedankt-pagina { margin-top: 1.5rem; }
+.bedankt-inhoud {
+  background: var(--wit);
+  border: 1px solid var(--rand);
+  border-radius: 0.6rem;
+  padding: 2rem 1.5rem;
+}
+.bedankt-titel {
+  color: var(--hoofd-groen);
+  font-size: 1.7rem;
+  font-weight: 800;
+  margin: 0 0 1.4rem;
+  text-align: center;
+}
+.bedankt-inhoud > p { margin: 0 0 1rem; }
+.belangrijk {
+  background: #fff7e0;
+  border-left: 4px solid #e0a800;
+  border-radius: 0.35rem;
+  padding: 1rem 1.1rem;
+  margin: 0 0 1rem;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+.belangrijk p { margin: 0; }
+
+/* ================= BLOKKERENDE FOUTMELDING ================= */
+.blokkeer-fout {
+  margin: 0.4rem 0 0;
+  font-size: 1rem;
+  color: var(--fout);
+  background: #fbe4e2;
+  border: 1px solid #f3b5b1;
+  border-left: 5px solid var(--fout);
+  padding: 0.7rem 0.9rem;
+  border-radius: 0.4rem;
+}
+.blokkeer-fout[hidden] { display: none; }
+
+/* ================= VOET ================= */
+.voet {
+  text-align: center;
+  padding: 1.2rem 1rem 1.6rem;
+  font-size: 0.85rem;
+  color: var(--tekst-zacht);
+}
+.voet a { color: var(--hoofd-groen); }

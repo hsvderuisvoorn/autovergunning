@@ -1,0 +1,329 @@
+/* ============================================================
+   Aanvraag autovergunning - aanvraag.js
+   ------------------------------------------------------------
+   Verzamelt het ingevulde formulier en verstuurt het naar de
+   Google Apps Script-backend (BACKEND_URL).
+
+   OFFLINE-WACHTRIJ:
+   - Als de backend niet bereikbaar is, wordt de aanvraag lokaal
+     bewaard (localStorage, sleutel "wachtrijAutovergunning").
+   - Zodra internet terugkeert (online-gebeurtenis) wordt de
+     wachtrij automatisch doorverstuurd.
+
+   LET OP (aan het eind van dit bestand):
+   - BACKEND_URL op de waarde van jouw gepubliceerde Apps
+     Script-webapp zetten; tot die tijd wordt elke aanvraag
+     alleen in de offline-wachtrij bewaard.
+   ============================================================ */
+
+"use strict";
+
+var BACKEND_URL = "https://script.google.com/macros/s/AKfycbwOo9VkTcTxynC877w1cJ4vWzs9wCVE4X72bnEbC7iWePJOkVqID1A1LwOEVM0YNOhu/exec";
+
+var WACHTRIJ_SLEUTEL = "wachtrijAutovergunning";
+
+/* ------------------------------------------------------------
+   Standaard vandaag invullen bij "Datum aanvraag"
+   ------------------------------------------------------------ */
+function stelVandaagIn() {
+  var veld = document.getElementById("datumAanvraag");
+  if (!veld) { return; }
+  var nu = new Date();
+  var j = nu.getFullYear();
+  var m = ("0" + (nu.getMonth() + 1)).slice(-2);
+  var d = ("0" + nu.getDate()).slice(-2);
+  veld.value = j + "-" + m + "-" + d;
+}
+
+/* ------------------------------------------------------------
+   Wachtrij (offline-opslag)
+   ------------------------------------------------------------ */
+function haalWachtrij() {
+  try {
+    var ruw = localStorage.getItem(WACHTRIJ_SLEUTEL);
+    return ruw ? JSON.parse(ruw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function bewaarWachtrij(rij) {
+  try {
+    localStorage.setItem(WACHTRIJ_SLEUTEL, JSON.stringify(rij));
+  } catch (e) { /* opslag niet beschikbaar (privacy-modus) */ }
+}
+
+/* ------------------------------------------------------------
+   Statusmelding tonen
+   ------------------------------------------------------------ */
+function toonStatus(tekst, soort) {
+  var el = document.getElementById("statusTekst");
+  if (!el) { return; }
+  el.textContent = tekst;
+  el.className = "zichtbaar";
+  if (soort === "ok")   { el.classList.add("ok"); }
+  if (soort === "fout") { el.classList.add("fout"); }
+  if (soort === "info") { el.classList.add("info"); }
+}
+
+/* ------------------------------------------------------------
+   Geluktpagina tonen na een succesvolle verzending
+   ------------------------------------------------------------ */
+function toonGeluktPagina() {
+  var form = document.getElementById("aanvraagForm");
+  var sectie = document.getElementById("geluktPagina");
+  if (sectie) { sectie.hidden = false; }
+  if (form)   { form.hidden = true; }
+  window.scrollTo(0, 0);
+}
+
+/* ------------------------------------------------------------
+   Verzoek naar de backend sturen (één aanvraag)
+   ------------------------------------------------------------ */
+function verstuurAanvraag(aanvraag) {
+  if (!BACKEND_URL) {
+    return Promise.reject(new Error("BACKEND_URL_LEEG"));
+  }
+  return fetch(BACKEND_URL, {
+    method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(aanvraag)
+  }).then(function () {
+    return "verstuurd";
+  });
+}
+
+/* ------------------------------------------------------------
+   Wachtrij doorsturen (zoveel mogelijk)
+   ------------------------------------------------------------ */
+function verstuurWachtrij() {
+  var rij = haalWachtrij();
+  if (!rij.length) { return Promise.resolve(0); }
+  var beloften = rij.map(function (item) {
+    return verstuurAanvraag(item).then(function () {
+      var overig = haalWachtrij().filter(function (x) {
+        return x.wachtrijId !== item.wachtrijId;
+      });
+      bewaarWachtrij(overig);
+      return 1;
+    }).catch(function () {
+      return 0; /* niet gelukt, blijft in de wachtrij */
+    });
+  });
+  return Promise.all(beloften).then(function (resultaten) {
+    var geslaagd = resultaten.reduce(function (a, b) { return a + b; }, 0);
+    if (geslaagd > 0 && !haalWachtrij().length) {
+      toonStatus("Uw aanvraag is verstuurd en is in goede orde ontvangen.", "ok");
+      resetFormulier();
+    }
+    return geslaagd;
+  });
+}
+
+/* ------------------------------------------------------------
+   Formulier leegmaken na succesvol verzenden
+   ------------------------------------------------------------ */
+function resetFormulier() {
+  var form = document.getElementById("aanvraagForm");
+  if (form) { form.reset(); }
+}
+
+/* ------------------------------------------------------------
+   Uitlezen van het formulier
+   ------------------------------------------------------------ */
+function verzamelAanvraag() {
+  function waarde(id) {
+    var el = document.getElementById(id);
+    return el ? el.value.trim() : "";
+  }
+  function radioWaarde(naam) {
+    var r = document.querySelector('input[name="' + naam + '"]:checked');
+    return r ? r.value : "";
+  }
+  function checkbox(id) {
+    var el = document.getElementById(id);
+    return el ? el.checked : false;
+  }
+
+  return {
+    type: "aanvraag-autovergunning",
+    datumAanvraag:   waarde("datumAanvraag"),
+    voorletters:     waarde("voorletters"),
+    voornaam:        waarde("voornaam"),
+    achternaam:      waarde("achternaam"),
+    geboortedatum:   waarde("geboortedatum"),
+    vispasnummer:    waarde("vispasnummer"),
+    invalidenkaart:  radioWaarde("invalidenkaart"),
+    invalidenkaartNummer: waarde("invalidenkaartNummer"),
+    voorwaardenRadio: radioWaarde("voorwaardenRadio"),
+    borgAkkoord:     checkbox("borgAkkoord"),
+    avgAkkoord:      checkbox("avgAkkoord"),
+    voorwaardenCheckbox: checkbox("voorwaardenCheckbox")
+  };
+}
+
+/* ------------------------------------------------------------
+   Validatie met duidelijke blokkerende berichten
+   ------------------------------------------------------------ */
+function toonAls(el, zichtbaar) {
+  if (el) { el.hidden = !zichtbaar; }
+}
+
+function controleerAanvraag() {
+  var ok = true;
+  var form = document.getElementById("aanvraagForm");
+
+  /* verplichte tekstvelden + geldige data */
+  if (!form.checkValidity()) {
+    toonStatus("Er zijn nog verplichte velden niet (goed) ingevuld. Verbeter de velden met een rode rand.", "fout");
+    form.reportValidity();
+    return false;
+  }
+
+  var invalide = document.querySelector('input[name="invalidenkaart"]:checked');
+
+  /* 1) invalidenkaart is minimaal verplicht */
+  if (!invalide) {
+    toonStatus("Geef aan of u een invalidenkaart heeft.", "fout");
+    form.reportValidity();
+    return false;
+  }
+  if (invalide.value === "nee") {
+    toonStatus("U komt niet in aanmerking voor een autovergunning: een invalidenkaart is minimaal verplicht voor een aanvraag.", "fout");
+    return false;
+  }
+  if (!document.getElementById("invalidenkaartNummer").value.trim()) {
+    toonStatus("Vul het nummer van uw invalidenkaart in.", "fout");
+    document.getElementById("invalidenkaartNummer").focus();
+    return false;
+  }
+
+  /* 2) akkoord voorwaarden (radio): nee = aanvraag afbreken */
+  var voorwRadio = document.querySelector('input[name="voorwaardenRadio"]:checked');
+  toonAls(document.getElementById("voorwaardenRadioFout"), !voorwRadio || voorwRadio.value !== "ja");
+  if (!voorwRadio) {
+    toonStatus("Geef aan of u akkoord gaat met de voorwaarden.", "fout");
+    return false;
+  }
+  if (voorwRadio.value === "nee") {
+    toonStatus("Het is minimaal verplicht om de voorwaarden te accepteren. Uw aanvraag is afgebroken.", "fout");
+    return false;
+  }
+
+  /* 3) borg €25 voor de sleutel */
+  var borg = document.getElementById("borgAkkoord");
+  toonAls(document.getElementById("borgAkkoordFout"), !borg.checked);
+  if (!borg.checked) {
+    toonStatus("U komt niet in aanmerking voor een autovergunning: het akkoord dat er €25 borg voor de sleutel in rekening wordt gebracht is minimaal verplicht.", "fout");
+    return false;
+  }
+
+  /* 4) AVG-akkoord */
+  var avg = document.getElementById("avgAkkoord");
+  toonAls(document.getElementById("avgAkkoordFout"), !avg.checked);
+  if (!avg.checked) {
+    toonStatus("Het akkoord met de AVG is minimaal verplicht om de aanvraag te kunnen verzenden.", "fout");
+    return false;
+  }
+
+  /* 5) akkoord voorwaarden (checkbox) */
+  var voorwBox = document.getElementById("voorwaardenCheckbox");
+  toonAls(document.getElementById("voorwaardenCheckboxFout"), !voorwBox.checked);
+  if (!voorwBox.checked) {
+    toonStatus("Het accepteren van de voorwaarden is minimaal verplicht om de aanvraag te kunnen verzenden.", "fout");
+    return false;
+  }
+
+  return ok;
+}
+
+function verstuurFormulier(e) {
+  e.preventDefault();
+
+  if (!controleerAanvraag()) {
+    return;
+  }
+
+  var aanvraag = verzamelAanvraag();
+
+  if (!BACKEND_URL) {
+    aanvraag.wachtrijId = "av-" + Date.now() + "-" +
+      Math.random().toString(36).slice(2, 8);
+    bewaarWachtrij(haalWachtrij().concat([aanvraag]));
+    toonStatus("Uw aanvraag is bewaard. Zodra de backend is ingesteld wordt hij automatisch verstuurd.", "info");
+    return;
+  }
+
+  toonStatus("Aanvraag wordt verstuurd...", "info");
+  verstuurAanvraag(aanvraag).then(function () {
+    toonGeluktPagina();
+    resetFormulier();
+  }).catch(function () {
+    aanvraag.wachtrijId = "av-" + Date.now() + "-" +
+      Math.random().toString(36).slice(2, 8);
+    bewaarWachtrij(haalWachtrij().concat([aanvraag]));
+    toonStatus("Geen verbinding (of de backend is nog niet ingesteld). De aanvraag is bewaard en wordt later automatisch verstuurd.", "info");
+  });
+}
+
+/* ------------------------------------------------------------
+   Koppel klaarzetten: velden tonen/verbergen + online-herstel
+   ------------------------------------------------------------ */
+function koppelKlaarzetten() {
+  var form = document.getElementById("aanvraagForm");
+  if (!form) { return; }
+  form.addEventListener("submit", verstuurFormulier);
+  form.noValidate = true;
+
+  stelVandaagIn();
+
+  /* invalidenkaart = nee -> duidelijk bericht, ja -> nummer tonen */
+  var geenBericht = document.getElementById("geenInvalideBericht");
+  var invalideGroep = document.getElementById("invalideGroep");
+  var invalideNummer = document.getElementById("invalidenkaartNummer");
+
+  function toonInvalide() {
+    var gekozen = document.querySelector('input[name="invalidenkaart"]:checked');
+    var ja = !!(gekozen && gekozen.value === "ja");
+    var nee = !!(gekozen && gekozen.value === "nee");
+    if (geenBericht)   { geenBericht.hidden = !nee; }
+    if (invalideGroep) { invalideGroep.hidden = !ja; }
+    if (invalideNummer) {
+      invalideNummer.required = ja;
+      if (nee) { invalideNummer.value = ""; }
+    }
+  }
+  document.querySelectorAll('input[name="invalidenkaart"]').forEach(function (r) {
+    r.addEventListener("change", toonInvalide);
+  });
+
+  /* foutmeldingen onder akkoord-velden verbergen zodra het rechtgezet wordt */
+  function herstel(checkbox, foutP) {
+    checkbox.addEventListener("change", function () {
+      if (checkbox.checked) { if (foutP) { foutP.hidden = true; } }
+    });
+  }
+  herstel(document.getElementById("borgAkkoord"), document.getElementById("borgAkkoordFout"));
+  herstel(document.getElementById("avgAkkoord"), document.getElementById("avgAkkoordFout"));
+  herstel(document.getElementById("voorwaardenCheckbox"), document.getElementById("voorwaardenCheckboxFout"));
+  var voorwRadios = document.querySelectorAll('input[name="voorwaardenRadio"]');
+  voorwRadios.forEach(function (r) {
+    r.addEventListener("change", function () {
+      var fout = document.getElementById("voorwaardenRadioFout");
+      var gekozen = document.querySelector('input[name="voorwaardenRadio"]:checked');
+      if (fout && gekozen && gekozen.value === "ja") { fout.hidden = true; }
+    });
+  });
+
+  /* online -> wachtrij leegpompen */
+  if ("ononline" in window) {
+    window.addEventListener("online", function () {
+      if (haalWachtrij().length) {
+        verstuurWachtrij();
+      }
+    });
+  }
+}
+
+document.addEventListener("DOMContentLoaded", koppelKlaarzetten);
