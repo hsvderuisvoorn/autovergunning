@@ -49,7 +49,8 @@ function doPost(e) {
     json.borgAkkoord        === true ? "ja" : "",  /* J akkoord borg €25 sleutel      */
     json.avgAkkoord         === true ? "ja" : "",  /* K akkoord AVG                    */
     json.voorwaardenCheckbox === true ? "ja" : "", /* L akkoord voorwaarden (checkbox)*/
-    vandaagTekst()                                  /* M ingediend op (dd-mm-jjjj hh:mm) */
+    vandaagTekst(),                                 /* M ingediend op (dd-mm-jjjj hh:mm) */
+    json.soortAanvraag      || ""                  /* N soort aanvraag (nieuw/duplicaat) */
   ]);
 
   opmaakToepassen(blad);
@@ -73,7 +74,7 @@ function opmaakToepassen(blad) {
   blad.setRowHeight(1, 24);
   blad.setFrozenRows(1);
 
-  var kop = blad.getRange(1, 1, 1, 13);
+  var kop = blad.getRange(1, 1, 1, 14);
   kop.setFontWeight("bold")
      .setBackground("#1b5e20")
      .setFontColor("#ffffff")
@@ -86,7 +87,7 @@ function opmaakToepassen(blad) {
 
   var laatste = blad.getLastRow();
   if (laatste >= 2) {
-    var data = blad.getRange(2, 1, laatste - 1, 13);
+    var data = blad.getRange(2, 1, laatste - 1, 14);
     data.setFontFamily("Arial")
         .setFontSize(10)
         .setVerticalAlignment("middle")
@@ -105,8 +106,8 @@ function opmaakToepassen(blad) {
    rij en alle rijen eronder). */
 function fitKolombreedtes(blad, laatste) {
   if (laatste < 1) laatste = 1;
-  var kopRij = blad.getRange(1, 1, 1, 13).getValues()[0];
-  var waarden = laatste >= 2 ? blad.getRange(2, 1, laatste - 1, 13).getValues() : [];
+  var kopRij = blad.getRange(1, 1, 1, 14).getValues()[0];
+  var waarden = laatste >= 2 ? blad.getRange(2, 1, laatste - 1, 14).getValues() : [];
   var maxPerKolom = {
     1: 14,                                    /* A datum compact                   */
     7: 14,                                    /* G invalidenkaart compact          */
@@ -114,7 +115,7 @@ function fitKolombreedtes(blad, laatste) {
   };
   var limietNormaal = 45;
   var limietWrap = 30;
-  for (var c = 0; c < 13; c++) {
+  for (var c = 0; c < 14; c++) {
     var kolom = c + 1;
     var langste = String(kopRij[c] || "").length;
     for (var r = 0; r < waarden.length; r++) {
@@ -161,7 +162,7 @@ function koppelSpreadsheet() {
       "Geboortedatum", "Vispasnummer", "Invalidenkaart",
       "Invalidenkaartnummer", "Akkoord voorwaarden",
       "Akkoord borg €25 sleutel", "Akkoord AVG",
-      "Akkoord voorwaarden", "Ingediend op"
+      "Akkoord voorwaarden", "Ingediend op", "Soort aanvraag"
     ];
     blad.getRange(1, 1, 1, koppen.length)
         .setValues([koppen])
@@ -169,6 +170,11 @@ function koppelSpreadsheet() {
         .setBackground("#1b5e20")
         .setFontColor("#ffffff");
     opmaakToepassen(blad);
+  }
+
+  /* bestaande sheet: ontbrekende kop 'Soort aanvraag' (col N) toevoegen */
+  if (blad.getLastColumn() < 14) {
+    blad.getRange(1, 14).setValue("Soort aanvraag");
   }
 
   return { blad: blad, nieuwGemaakt: nieuwGemaakt };

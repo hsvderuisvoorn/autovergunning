@@ -148,6 +148,7 @@ function verzamelAanvraag() {
 
   return {
     type: "aanvraag-autovergunning",
+    soortAanvraag:   radioWaarde("soortAanvraag"),
     datumAanvraag:   waarde("datumAanvraag"),
     voorletters:     waarde("voorletters"),
     voornaam:        waarde("voornaam"),
@@ -277,6 +278,16 @@ function koppelKlaarzetten() {
   form.noValidate = true;
 
   stelVandaagIn();
+
+  /* duplicaat gekozen -> kosten (€5) tonen */
+  var kostenEl = document.getElementById("duplicaatKosten");
+  function toonKostenDuplicaat() {
+    var gekozen = document.querySelector('input[name="soortAanvraag"]:checked');
+    if (kostenEl) { kostenEl.hidden = !(gekozen && gekozen.value === "duplicaat"); }
+  }
+  document.querySelectorAll('input[name="soortAanvraag"]').forEach(function (r) {
+    r.addEventListener("change", toonKostenDuplicaat);
+  });
 
   /* invalidenkaart = nee -> duidelijk bericht, ja -> nummer tonen */
   var geenBericht = document.getElementById("geenInvalideBericht");

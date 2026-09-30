@@ -12,7 +12,7 @@
 <body>
 <header class="kop-balk">
   <div class="kop-inner">
-    <h1>Autovergunning <span>HSV De Ruisvoorn</span></h1>
+    <h1>Aanvraag Autovergunning <span>HSV De Ruisvoorn · voor een nieuwe of duplicaat Autovergunning</span></h1>
   </div>
   <img src="./logo.png" alt="HSV De Ruisvoorn logo" class="kop-logo">
 </header>
@@ -21,10 +21,26 @@
   <section class="intro-blok">
     <h2>Aanvragen is zo geregeld</h2>
     <p>Vul onderstaand formulier in om een Autovergunning aan te vragen. Bekijk vooraf de <strong>voorwaarden</strong>; een <strong>geldige invalidenkaart is minimaal verplicht</strong> voor een aanvraag.</p>
-    <p><strong>Geen verbinding?</strong> Geen probleem — uw aanvraag wordt op uw telefoon bewaard en automatisch verzonden zodra u weer online bent.</p>
+    <p><strong>Geen verbinding?</strong> Geen probleem, uw aanvraag wordt op uw telefoon bewaard en automatisch verzonden zodra u weer online bent.</p>
   </section>
 
   <form id="aanvraagForm" novalidate>
+
+    <fieldset>
+      <legend>Type aanvraag</legend>
+      <div class="veld-inner">
+
+        <div class="veld-groep">
+          <span class="veld-titel">Wat wilt u aanvragen? <span class="verplicht-ster">*</span></span>
+          <div class="radio-lijst">
+            <label class="radio-optie"><input type="radio" name="soortAanvraag" value="nieuw" required> Aanvraag nieuwe vergunning</label>
+            <label class="radio-optie"><input type="radio" name="soortAanvraag" value="duplicaat" required> Aanvraag duplicaat vergunning</label>
+          </div>
+          <p id="duplicaatKosten" class="hulp-tekst" hidden>Een duplicaat vergunning kost <strong>&euro;5</strong>; dit bedrag dient u bij toekenning te voldoen.</p>
+        </div>
+
+      </div>
+    </fieldset>
 
     <fieldset>
       <legend>Gegevens aanvrager</legend>
