@@ -1,5 +1,5 @@
 /* ============================================================
-   Aanvraag autovergunning - aanvraag.js
+   Aanvraag Autovergunning - aanvraag.js
    ------------------------------------------------------------
    Verzamelt het ingevulde formulier en verstuurt het naar de
    Google Apps Script-backend (BACKEND_URL).
@@ -190,7 +190,7 @@ function controleerAanvraag() {
     return false;
   }
   if (invalide.value === "nee") {
-    toonStatus("U komt niet in aanmerking voor een autovergunning: een invalidenkaart is minimaal verplicht voor een aanvraag.", "fout");
+    toonStatus("U komt niet in aanmerking voor een Autovergunning: een invalidenkaart is minimaal verplicht voor een aanvraag.", "fout");
     return false;
   }
   if (!document.getElementById("invalidenkaartNummer").value.trim()) {
@@ -199,15 +199,15 @@ function controleerAanvraag() {
     return false;
   }
 
-  /* 2) akkoord voorwaarden (radio): nee = aanvraag afbreken */
+  /* 2) akkoord voorwaarden (radio): nee = zelfde blokkade als invalidenkaart */
   var voorwRadio = document.querySelector('input[name="voorwaardenRadio"]:checked');
-  toonAls(document.getElementById("voorwaardenRadioFout"), !voorwRadio || voorwRadio.value !== "ja");
+  toonAls(document.getElementById("voorwaardenBlokkeerBericht"), !voorwRadio || voorwRadio.value !== "ja");
   if (!voorwRadio) {
     toonStatus("Geef aan of u akkoord gaat met de voorwaarden.", "fout");
     return false;
   }
   if (voorwRadio.value === "nee") {
-    toonStatus("Het is minimaal verplicht om de voorwaarden te accepteren. Uw aanvraag is afgebroken.", "fout");
+    toonStatus("U komt niet in aanmerking voor een Autovergunning: het accepteren van de voorwaarden is minimaal verplicht voor een aanvraag.", "fout");
     return false;
   }
 
@@ -215,7 +215,7 @@ function controleerAanvraag() {
   var borg = document.getElementById("borgAkkoord");
   toonAls(document.getElementById("borgAkkoordFout"), !borg.checked);
   if (!borg.checked) {
-    toonStatus("U komt niet in aanmerking voor een autovergunning: het akkoord dat er €25 borg voor de sleutel in rekening wordt gebracht is minimaal verplicht.", "fout");
+    toonStatus("U komt niet in aanmerking voor een Autovergunning: het akkoord dat er €25 borg voor de sleutel in rekening wordt gebracht is minimaal verplicht.", "fout");
     return false;
   }
 
@@ -298,6 +298,18 @@ function koppelKlaarzetten() {
     r.addEventListener("change", toonInvalide);
   });
 
+  /* voorwaarden radio = nee -> zelfde blokkerende melding tonen */
+  var voorwBlokkeer = document.getElementById("voorwaardenBlokkeerBericht");
+  var voorwRadios = document.querySelectorAll('input[name="voorwaardenRadio"]');
+  function toonVoorwBlokkade() {
+    var gekozen = document.querySelector('input[name="voorwaardenRadio"]:checked');
+    var nee = !!(gekozen && gekozen.value === "nee");
+    if (voorwBlokkeer) { voorwBlokkeer.hidden = !nee; }
+  }
+  voorwRadios.forEach(function (r) {
+    r.addEventListener("change", toonVoorwBlokkade);
+  });
+
   /* foutmeldingen onder akkoord-velden verbergen zodra het rechtgezet wordt */
   function herstel(checkbox, foutP) {
     checkbox.addEventListener("change", function () {
@@ -307,14 +319,6 @@ function koppelKlaarzetten() {
   herstel(document.getElementById("borgAkkoord"), document.getElementById("borgAkkoordFout"));
   herstel(document.getElementById("avgAkkoord"), document.getElementById("avgAkkoordFout"));
   herstel(document.getElementById("voorwaardenCheckbox"), document.getElementById("voorwaardenCheckboxFout"));
-  var voorwRadios = document.querySelectorAll('input[name="voorwaardenRadio"]');
-  voorwRadios.forEach(function (r) {
-    r.addEventListener("change", function () {
-      var fout = document.getElementById("voorwaardenRadioFout");
-      var gekozen = document.querySelector('input[name="voorwaardenRadio"]:checked');
-      if (fout && gekozen && gekozen.value === "ja") { fout.hidden = true; }
-    });
-  });
 
   /* online -> wachtrij leegpompen */
   if ("ononline" in window) {

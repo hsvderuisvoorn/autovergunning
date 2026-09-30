@@ -1,5 +1,5 @@
 /* ============================================================
-   BACKEND (webapp) - Aanvraag autovergunning HSV De Ruisvoorn
+   BACKEND (webapp) - Aanvraag Autovergunning HSV De Ruisvoorn
    ------------------------------------------------------------
    ALGEMEEN: dit is het ene, schone bestand voor de backend.
    - Zet HET in het Apps Script-project dat gekoppeld zit aan de
@@ -192,7 +192,7 @@ function verplaatsNaarMap(bestand, mapNaam) {
    opent (geen formulier, alleen "backend actief").
    ------------------------------------------------------------ */
 function doGet() {
-  return ContentService.createTextOutput("Backend aanvraag autovergunning: actief.")
+  return ContentService.createTextOutput("Backend aanvraag Autovergunning: actief.")
     .setMimeType(ContentService.MimeType.TEXT);
 }
 
