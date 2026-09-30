@@ -21,6 +21,7 @@
 var BACKEND_URL = "https://script.google.com/macros/s/AKfycbzVFiPhXg3rM-IadQH0oBSIxqnXP45iXIo8dFcKcPq9eRK155VXXUi4nwuWluK2ogXQ/exec";
 
 var WACHTRIJ_SLEUTEL = "wachtrijAutovergunning";
+var laatsteSoortAanvraag = "";
 
 /* ------------------------------------------------------------
    Standaard vandaag invullen bij "Datum aanvraag"
@@ -74,6 +75,12 @@ function toonGeluktPagina() {
   var sectie = document.getElementById("geluktPagina");
   if (sectie) { sectie.hidden = false; }
   if (form)   { form.hidden = true; }
+  var kosten = document.getElementById("geluktKostenTekst");
+  if (kosten) {
+    kosten.textContent = laatsteSoortAanvraag === "duplicaat"
+      ? "Let op: toekenning is pas definitief na goedkeuring. De €5 voor de duplicaat vergunning wordt pas bij toekenning in rekening gebracht."
+      : "Let op: toekenning is pas definitief na goedkeuring. De borg van €25 voor de sleutel wordt pas bij toekenning in rekening gebracht.";
+  }
   window.scrollTo(0, 0);
 }
 
@@ -159,6 +166,7 @@ function verzamelAanvraag() {
     invalidenkaartNummer: waarde("invalidenkaartNummer"),
     voorwaardenRadio: radioWaarde("voorwaardenRadio"),
     borgAkkoord:     checkbox("borgAkkoord"),
+    duplicaatKostenAkkoord: checkbox("duplicaatKostenAkkoord"),
     avgAkkoord:      checkbox("avgAkkoord"),
     voorwaardenCheckbox: checkbox("voorwaardenCheckbox")
   };
@@ -212,12 +220,29 @@ function controleerAanvraag() {
     return false;
   }
 
-  /* 3) borg €25 voor de sleutel */
-  var borg = document.getElementById("borgAkkoord");
-  toonAls(document.getElementById("borgAkkoordFout"), !borg.checked);
-  if (!borg.checked) {
-    toonStatus("U komt niet in aanmerking voor een Autovergunning: het akkoord dat er €25 borg voor de sleutel in rekening wordt gebracht is minimaal verplicht.", "fout");
+  /* 3) soort aanvraag: nieuw → borg €25, duplicaat → €5 in rekening */
+  var soort = document.querySelector('input[name="soortAanvraag"]:checked');
+  if (!soort) {
+    toonStatus("Maak een keuze: een nieuwe vergunning of een duplicaat vergunning.", "fout");
+    form.reportValidity();
     return false;
+  }
+  var borg = document.getElementById("borgAkkoord");
+  var dupKosten = document.getElementById("duplicaatKostenAkkoord");
+  if (soort.value === "duplicaat") {
+    toonAls(document.getElementById("borgAkkoordFout"), false);
+    toonAls(document.getElementById("duplicaatKostenAkkoordFout"), !dupKosten.checked);
+    if (!dupKosten.checked) {
+      toonStatus("U komt niet in aanmerking: het akkoord dat er €5 in rekening wordt gebracht is minimaal verplicht voor een duplicaat vergunning.", "fout");
+      return false;
+    }
+  } else {
+    toonAls(document.getElementById("duplicaatKostenAkkoordFout"), false);
+    toonAls(document.getElementById("borgAkkoordFout"), !borg.checked);
+    if (!borg.checked) {
+      toonStatus("U komt niet in aanmerking voor een Autovergunning: het akkoord dat er €25 borg voor de sleutel in rekening wordt gebracht is minimaal verplicht.", "fout");
+      return false;
+    }
   }
 
   /* 4) AVG-akkoord */
@@ -247,6 +272,7 @@ function verstuurFormulier(e) {
   }
 
   var aanvraag = verzamelAanvraag();
+  laatsteSoortAanvraag = aanvraag.soortAanvraag;
 
   if (!BACKEND_URL) {
     aanvraag.wachtrijId = "av-" + Date.now() + "-" +
@@ -279,14 +305,26 @@ function koppelKlaarzetten() {
 
   stelVandaagIn();
 
-  /* duplicaat gekozen -> kosten (€5) tonen */
+  /* nieuw/duplicaat: borg €25 (nieuw) versus €5-akkoord (duplicaat) */
   var kostenEl = document.getElementById("duplicaatKosten");
-  function toonKostenDuplicaat() {
+  var borgGroep = document.getElementById("borgGroep");
+  var duplicaatGroep = document.getElementById("duplicaatGroep");
+  function toonSoortGroepen() {
     var gekozen = document.querySelector('input[name="soortAanvraag"]:checked');
-    if (kostenEl) { kostenEl.hidden = !(gekozen && gekozen.value === "duplicaat"); }
+    var duplicaat = !!(gekozen && gekozen.value === "duplicaat");
+    if (kostenEl) { kostenEl.hidden = !duplicaat; }
+    if (borgGroep) { borgGroep.hidden = duplicaat; }
+    if (duplicaatGroep) { duplicaatGroep.hidden = !duplicaat; }
+    if (duplicaat) {
+      var b = document.getElementById("borgAkkoord");
+      if (b) { b.checked = false; }
+    } else {
+      var d = document.getElementById("duplicaatKostenAkkoord");
+      if (d) { d.checked = false; }
+    }
   }
   document.querySelectorAll('input[name="soortAanvraag"]').forEach(function (r) {
-    r.addEventListener("change", toonKostenDuplicaat);
+    r.addEventListener("change", toonSoortGroepen);
   });
 
   /* invalidenkaart = nee -> duidelijk bericht, ja -> nummer tonen */
@@ -328,6 +366,7 @@ function koppelKlaarzetten() {
     });
   }
   herstel(document.getElementById("borgAkkoord"), document.getElementById("borgAkkoordFout"));
+  herstel(document.getElementById("duplicaatKostenAkkoord"), document.getElementById("duplicaatKostenAkkoordFout"));
   herstel(document.getElementById("avgAkkoord"), document.getElementById("avgAkkoordFout"));
   herstel(document.getElementById("voorwaardenCheckbox"), document.getElementById("voorwaardenCheckboxFout"));
 

@@ -50,7 +50,8 @@ function doPost(e) {
     json.avgAkkoord         === true ? "ja" : "",  /* K akkoord AVG                    */
     json.voorwaardenCheckbox === true ? "ja" : "", /* L akkoord voorwaarden (checkbox)*/
     vandaagTekst(),                                 /* M ingediend op (dd-mm-jjjj hh:mm) */
-    json.soortAanvraag      || ""                  /* N soort aanvraag (nieuw/duplicaat) */
+    json.soortAanvraag      || "",                  /* N soort aanvraag (nieuw/duplicaat) */
+    json.duplicaatKostenAkkoord === true ? "ja" : "" /* O akkoord €5 duplicaat */
   ]);
 
   opmaakToepassen(blad);
@@ -74,7 +75,7 @@ function opmaakToepassen(blad) {
   blad.setRowHeight(1, 24);
   blad.setFrozenRows(1);
 
-  var kop = blad.getRange(1, 1, 1, 14);
+  var kop = blad.getRange(1, 1, 1, 15);
   kop.setFontWeight("bold")
      .setBackground("#1b5e20")
      .setFontColor("#ffffff")
@@ -87,7 +88,7 @@ function opmaakToepassen(blad) {
 
   var laatste = blad.getLastRow();
   if (laatste >= 2) {
-    var data = blad.getRange(2, 1, laatste - 1, 14);
+    var data = blad.getRange(2, 1, laatste - 1, 15);
     data.setFontFamily("Arial")
         .setFontSize(10)
         .setVerticalAlignment("middle")
@@ -106,16 +107,18 @@ function opmaakToepassen(blad) {
    rij en alle rijen eronder). */
 function fitKolombreedtes(blad, laatste) {
   if (laatste < 1) laatste = 1;
-  var kopRij = blad.getRange(1, 1, 1, 14).getValues()[0];
-  var waarden = laatste >= 2 ? blad.getRange(2, 1, laatste - 1, 14).getValues() : [];
+  var kopRij = blad.getRange(1, 1, 1, 15).getValues()[0];
+  var waarden = laatste >= 2 ? blad.getRange(2, 1, laatste - 1, 15).getValues() : [];
   var maxPerKolom = {
     1: 14,                                    /* A datum compact                   */
     7: 14,                                    /* G invalidenkaart compact          */
-    13: 20                                   /* M ingediend op compact             */
+    13: 20,                                   /* M ingediend op compact             */
+    14: 14,                                   /* N soort aanvraag compact           */
+    15: 20                                    /* O akkoord €5 duplicaat compact     */
   };
   var limietNormaal = 45;
   var limietWrap = 30;
-  for (var c = 0; c < 14; c++) {
+  for (var c = 0; c < 15; c++) {
     var kolom = c + 1;
     var langste = String(kopRij[c] || "").length;
     for (var r = 0; r < waarden.length; r++) {
@@ -162,7 +165,8 @@ function koppelSpreadsheet() {
       "Geboortedatum", "Vispasnummer", "Invalidenkaart",
       "Invalidenkaartnummer", "Akkoord voorwaarden",
       "Akkoord borg €25 sleutel", "Akkoord AVG",
-      "Akkoord voorwaarden", "Ingediend op", "Soort aanvraag"
+      "Akkoord voorwaarden", "Ingediend op", "Soort aanvraag",
+      "Akkoord €5 duplicaat"
     ];
     blad.getRange(1, 1, 1, koppen.length)
         .setValues([koppen])
@@ -172,9 +176,13 @@ function koppelSpreadsheet() {
     opmaakToepassen(blad);
   }
 
-  /* bestaande sheet: ontbrekende kop 'Soort aanvraag' (col N) toevoegen */
+  /* bestaande sheet: ontbrekende koppen (col N 'Soort aanvraag' en
+   col O 'Akkoord €5 duplicaat') toevoegen */
   if (blad.getLastColumn() < 14) {
     blad.getRange(1, 14).setValue("Soort aanvraag");
+  }
+  if (blad.getLastColumn() < 15) {
+    blad.getRange(1, 15).setValue("Akkoord €5 duplicaat");
   }
 
   return { blad: blad, nieuwGemaakt: nieuwGemaakt };

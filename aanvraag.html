@@ -116,12 +116,20 @@
           <p id="voorwaardenBlokkeerBericht" class="blokkeer-fout" hidden>Het accepteren van de voorwaarden is minimaal verplicht voor een aanvraag voor een Autovergunning.<br><strong>U komt niet in aanmerking voor een Autovergunning.</strong></p>
         </div>
 
-        <div class="veld-groep">
+        <div class="veld-groep" id="borgGroep">
           <label class="akkoord-optie">
             <input type="checkbox" id="borgAkkoord" name="borgAkkoord">
             <span>Ik ga akkoord dat er <strong>&euro;25 borg voor de sleutel</strong> in rekening wordt gebracht. <span class="verplicht-ster">*</span></span>
           </label>
           <p id="borgAkkoordFout" class="veld-fout" hidden>U komt niet in aanmerking: het akkoord dat er &euro;25 borg voor de sleutel in rekening wordt gebracht is minimaal verplicht.</p>
+        </div>
+
+        <div class="veld-groep" id="duplicaatGroep" hidden>
+          <label class="akkoord-optie">
+            <input type="checkbox" id="duplicaatKostenAkkoord" name="duplicaatKostenAkkoord">
+            <span>Ik ga akkoord dat er <strong>&euro;5</strong> voor de duplicaat vergunning in rekening wordt gebracht. <span class="verplicht-ster">*</span></span>
+          </label>
+          <p id="duplicaatKostenAkkoordFout" class="veld-fout" hidden>U komt niet in aanmerking: het akkoord dat er &euro;5 in rekening wordt gebracht is minimaal verplicht.</p>
         </div>
 
         <div class="veld-groep">
@@ -155,7 +163,7 @@
       <h2 class="bedankt-titel">Aanvraag ontvangen</h2>
       <p>Uw aanvraag voor een Autovergunning is in goede orde ontvangen en wordt door ons beoordeeld.</p>
       <div class="belangrijk">
-        <p>Let op: toekenning is pas definitief na goedkeuring. De borg van &euro;25 voor de sleutel wordt pas bij toekenning in rekening gebracht.</p>
+        <p id="geluktKostenTekst">Let op: toekenning is pas definitief na goedkeuring. De borg van &euro;25 voor de sleutel wordt pas bij toekenning in rekening gebracht.</p>
       </div>
       <p>Heeft u vragen? Stuur die naar <a href="mailto:secretariaat@hsvderuisvoorn.nl">secretariaat@hsvderuisvoorn.nl</a>.</p>
     </div>
