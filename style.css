@@ -204,6 +204,32 @@ input:focus, select:focus, textarea:focus {
 }
 .akkoord-optie input[type="checkbox"] { margin-top: 0.2rem; }
 
+/* ================= VOORWAARDENBLOK ================= */
+.voorwaarden-blok {
+  background: var(--achtergrond);
+  border: 1px solid var(--rand);
+  border-left: 4px solid var(--hoofd-groen);
+  border-radius: 0.4rem;
+  padding: 0.9rem 1rem;
+  margin: 0 0 1rem;
+}
+.voorwaarden-slogan {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--hoofd-groen);
+  margin: 0 0 0.5rem;
+}
+.voorwaarden-blok .voorwaarden-lijst {
+  margin: 0 0 0.6rem;
+  padding-left: 1.1rem;
+}
+.voorwaarden-blok li,
+.voorwaarden-blok > p {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 0.35rem 0;
+}
+
 /* ================= VERSTUURKNOP + STATUS ================= */
 .verstuur-balk { text-align: center; margin: 1.2rem 0 0.4rem; }
 
