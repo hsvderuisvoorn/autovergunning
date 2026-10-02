@@ -194,6 +194,20 @@ input:focus, select:focus, textarea:focus {
   margin: 0.3rem 0 0;
 }
 
+/* datum: handmatig invullen én kiezen via de kalender */
+.datum-invoer {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.datum-invoer input[type="text"] { flex: 1; min-width: 9rem; }
+.datum-invoer .kalender-invoer {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 8.6rem;
+}
+
 /* akkoord-checkbox plus uitgevulde uitleg */
 .akkoord-optie {
   display: flex;

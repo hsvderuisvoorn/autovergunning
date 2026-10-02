@@ -123,7 +123,24 @@ function stelVandaagIn() {
   var j = nu.getFullYear();
   var m = ("0" + (nu.getMonth() + 1)).slice(-2);
   var d = ("0" + nu.getDate()).slice(-2);
-  veld.value = j + "-" + m + "-" + d;
+  veld.value = d + "-" + m + "-" + j;
+}
+
+/* Gekozen datum uit de kalender (jjjj-mm-dd) overzetten naar het
+   handmatige veld (dd-mm-jjjj). */
+function koppelKalender(tekstId, kalenderId) {
+  var tekst = document.getElementById(tekstId);
+  var kal = document.getElementById(kalenderId);
+  if (!tekst || !kal) { return; }
+  kal.addEventListener("change", function () {
+    var v = kal.value;
+    if (!v) { return; }
+    var delen = v.split("-");
+    if (delen.length === 3) {
+      tekst.value = delen[2] + "-" + delen[1] + "-" + delen[0];
+      kal.value = "";
+    }
+  });
 }
 
 /* ------------------------------------------------------------
@@ -264,7 +281,6 @@ function verzamelAanvraag() {
     vispasnummer:    waarde("vispasnummer"),
     invalidenkaart:  radioWaarde("invalidenkaart"),
     invalidenkaartNummer: waarde("invalidenkaartNummer"),
-    voorwaardenRadio: radioWaarde("voorwaardenRadio"),
     borgAkkoord:     checkbox("borgAkkoord"),
     duplicaatKostenAkkoord: checkbox("duplicaatKostenAkkoord"),
     avgAkkoord:      checkbox("avgAkkoord"),
@@ -318,19 +334,7 @@ function controleerAanvraag() {
     }
   }
 
-  /* 2) akkoord voorwaarden (radio): nee = zelfde blokkade als invalidenkaart */
-  var voorwRadio = document.querySelector('input[name="voorwaardenRadio"]:checked');
-  toonAls(document.getElementById("voorwaardenBlokkeerBericht"), !voorwRadio || voorwRadio.value !== "ja");
-  if (!voorwRadio) {
-    toonStatus("Geef aan of u akkoord gaat met de voorwaarden.", "fout");
-    return false;
-  }
-  if (voorwRadio.value === "nee") {
-    toonStatus("U komt niet in aanmerking voor een Autovergunning: het accepteren van de voorwaarden is minimaal verplicht voor een aanvraag.", "fout");
-    return false;
-  }
-
-  /* 3) soort aanvraag: nieuw → borg €25, duplicaat → €5 in rekening */
+  /* 2) soort aanvraag: nieuw → borg €25, duplicaat → €5 in rekening */
   var borg = document.getElementById("borgAkkoord");
   var dupKosten = document.getElementById("duplicaatKostenAkkoord");
   if (soort.value === "duplicaat") {
@@ -349,7 +353,7 @@ function controleerAanvraag() {
     }
   }
 
-  /* 4) AVG-akkoord */
+  /* 3) AVG-akkoord */
   var avg = document.getElementById("avgAkkoord");
   toonAls(document.getElementById("avgAkkoordFout"), !avg.checked);
   if (!avg.checked) {
@@ -357,7 +361,7 @@ function controleerAanvraag() {
     return false;
   }
 
-  /* 5) akkoord voorwaarden (checkbox) */
+  /* 4) akkoord voorwaarden (checkbox) */
   var voorwBox = document.getElementById("voorwaardenCheckbox");
   toonAls(document.getElementById("voorwaardenCheckboxFout"), !voorwBox.checked);
   if (!voorwBox.checked) {
@@ -420,6 +424,10 @@ function koppelKlaarzetten() {
 
   stelVandaagIn();
 
+  /* kalender naar handmatig datumveld koppelen */
+  koppelKalender("datumAanvraag", "datumAanvraagKalender");
+  koppelKalender("geboortedatum", "geboortedatumKalender");
+
   /* nieuw/duplicaat: borg €25 (nieuw) versus €5-akkoord (duplicaat),
    en bij duplicaat is de invalidenkaart niet van toepassing */
   var kostenEl = document.getElementById("duplicaatKosten");
@@ -468,18 +476,6 @@ function koppelKlaarzetten() {
   }
   document.querySelectorAll('input[name="invalidenkaart"]').forEach(function (r) {
     r.addEventListener("change", toonInvalide);
-  });
-
-  /* voorwaarden radio = nee -> zelfde blokkerende melding tonen */
-  var voorwBlokkeer = document.getElementById("voorwaardenBlokkeerBericht");
-  var voorwRadios = document.querySelectorAll('input[name="voorwaardenRadio"]');
-  function toonVoorwBlokkade() {
-    var gekozen = document.querySelector('input[name="voorwaardenRadio"]:checked');
-    var nee = !!(gekozen && gekozen.value === "nee");
-    if (voorwBlokkeer) { voorwBlokkeer.hidden = !nee; }
-  }
-  voorwRadios.forEach(function (r) {
-    r.addEventListener("change", toonVoorwBlokkade);
   });
 
   /* foutmeldingen onder akkoord-velden verbergen zodra het rechtgezet wordt */

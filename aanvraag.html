@@ -48,7 +48,11 @@
 
         <div class="veld-groep">
           <label for="datumAanvraag">Datum aanvraag <span class="verplicht-ster">*</span></label>
-          <input type="date" id="datumAanvraag" name="datumAanvraag" required>
+          <div class="datum-invoer">
+            <input type="text" id="datumAanvraag" name="datumAanvraag" placeholder="dd-mm-jjjj" inputmode="numeric" pattern="[0-9]{1,2}-[0-9]{1,2}-[0-9]{4}" autocomplete="off" required>
+            <input type="date" id="datumAanvraagKalender" class="kalender-invoer" aria-label="Kies de datum aanvraag via de kalender">
+          </div>
+          <p class="hulp-tekst">Typ de datum zelf in (dd-mm-jjjj) of kies hem via de kalender.</p>
         </div>
 
         <div class="veld-groep">
@@ -68,7 +72,11 @@
 
         <div class="veld-groep">
           <label for="geboortedatum">Geboortedatum <span class="verplicht-ster">*</span></label>
-          <input type="date" id="geboortedatum" name="geboortedatum" required>
+          <div class="datum-invoer">
+            <input type="text" id="geboortedatum" name="geboortedatum" placeholder="dd-mm-jjjj" inputmode="numeric" pattern="[0-9]{1,2}-[0-9]{1,2}-[0-9]{4}" autocomplete="off" required>
+            <input type="date" id="geboortedatumKalender" class="kalender-invoer" aria-label="Kies de geboortedatum via de kalender">
+          </div>
+          <p class="hulp-tekst">Typ de datum zelf in (dd-mm-jjjj) of kies hem via de kalender.</p>
         </div>
 
         <div class="veld-groep">
@@ -121,15 +129,6 @@
           </ul>
           <p>De vergunning dient duidelijk zichtbaar en leesbaar voor de voorruit van uw auto te liggen.</p>
           <p>U kunt de vereniging niet aansprakelijk stellen voor eventuele schade aan uw voertuig door welke oorzaak dan ook.</p>
-        </div>
-
-        <div class="veld-groep">
-          <span class="veld-titel">Akkoord met de voorwaarden? <span class="verplicht-ster">*</span></span>
-          <div class="radio-lijst">
-            <label class="radio-optie"><input type="radio" name="voorwaardenRadio" value="ja"> Ja, ik ga akkoord</label>
-            <label class="radio-optie"><input type="radio" name="voorwaardenRadio" value="nee"> Nee</label>
-          </div>
-          <p id="voorwaardenBlokkeerBericht" class="blokkeer-fout" hidden>Het accepteren van de voorwaarden is minimaal verplicht voor een aanvraag voor een Autovergunning.<br><strong>U komt niet in aanmerking voor een Autovergunning.</strong></p>
         </div>
 
         <div class="veld-groep" id="borgGroep">
