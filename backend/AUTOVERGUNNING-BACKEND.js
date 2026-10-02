@@ -87,6 +87,7 @@ function doPost(e) {
    (een mislukte mail breekt de aanvraag niet).
    ------------------------------------------------------------ */
 function verstuurAanvraagMelding(json) {
+  if (!json || typeof json !== "object") return; /* bv. los aangeroepen in de editor */
   var soort = json.soortAanvraag === "duplicaat" ? "duplicaat" : "nieuw";
   var naam = [json.voorletters, json.voornaam, json.achternaam]
     .join(" ").replace(/\s+/g, " ").trim();
@@ -115,6 +116,27 @@ function verstuurAanvraagMelding(json) {
   var onderwerp = "Autovergunning " +
     (soort === "duplicaat" ? "duplicaat" : "aanvraag") + " ontvangen: " + naam;
   MailApp.sendEmail(MAIL_ONTVANGER, onderwerp, regels.join("\n"));
+}
+
+/* ------------------------------------------------------------
+   Draaibaar vanuit de editor om (a) MailApp-toestemming te geven
+   en (b) te controleren dat de melding echt aankomt. Stuurt een
+   e-mail met vaste testgegevens.
+   ------------------------------------------------------------ */
+function testMailMelding() {
+  verstuurAanvraagMelding({
+    soortAanvraag: "nieuw",
+    datumAanvraag: "2026-10-02",
+    voorletters: "TEST",
+    voornaam: "TEST",
+    achternaam: "TEST-MAIL",
+    geboortedatum: "1980-03-20",
+    vispasnummer: "TEST-MAIL-1",
+    invalidenkaart: "nee",
+    voorwaardenCheckbox: true,
+    borgAkkoord: true
+  });
+  return "Testmail is verstuurd naar " + MAIL_ONTVANGER + ".";
 }
 
 /* ------------------------------------------------------------
