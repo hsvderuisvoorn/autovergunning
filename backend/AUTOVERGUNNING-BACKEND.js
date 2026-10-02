@@ -153,6 +153,7 @@ function fitKolombreedtes(blad, laatste) {
   var maxPerKolom = {
     1: 14,                                    /* A datum compact                   */
     2: 14,                                    /* B soort aanvraag compact          */
+    6: 12,                                    /* F geboortedatum compact           */
     8: 14,                                    /* H invalidenkaart compact          */
     14: 20,                                   /* N ingediend op compact            */
     15: 20,                                   /* O akkoord €5 duplicaat compact    */
@@ -167,13 +168,21 @@ function fitKolombreedtes(blad, laatste) {
     var kolom = c + 1;
     var langste = String(kopRij[c] || "").length;
     for (var r = 0; r < waarden.length; r++) {
-      var regels = String(waarden[r][c] || "").split("\n");
+      var celWaarde = waarden[r][c];
+      if (celWaarde instanceof Date) {
+        /* datafomaten zijn geen teksten: meet alleen de datumkluis */
+        celWaarde = Utilities.formatDate(
+          celWaarde, Session.getScriptTimeZone(), "dd-MM-yyyy");
+      }
+      var regels = String(celWaarde || "").split("\n");
       for (var z = 0; z < regels.length; z++) {
         if (regels[z].length > langste) langste = regels[z].length;
       }
     }
     var limiet = maxPerKolom[kolom] || (kolom === 4 || kolom === 5 || kolom === 9
                  ? limietWrap : limietNormaal);
+    /* zodat een datumkolom nooit te breed wordt ondanks de kop */
+    if (kolom === 6 && langste > 12) langste = 12;
     var tekens = Math.min(limiet, langste);
     blad.setColumnWidth(c + 1, Math.ceil(tekens * 8.5) + 12);
   }
@@ -273,6 +282,17 @@ function resetAanvragenTab() {
   /* na clear is het tabblad leeg: koppen + opmaak opnieuw */
   koppelSpreadsheet();
   return "Tabblad 'Aanvragen' is leeggemaakt en opnieuw opgebouwd.";
+}
+
+/* ------------------------------------------------------------
+   Past uitsluitend de opmaak en kolombreedtes aan (zonder iets
+   te wissen) en kleurt de bestaande rijen opnieuw. Handig na
+   een backend-update zodat de sheet in één klik netjes wordt.
+   ------------------------------------------------------------ */
+function verfraaiAanvragenSheet() {
+  var koppel = koppelSpreadsheet();
+  opmaakToepassen(koppel.blad);
+  return "Opmaak en kolombreedtes zijn vernieuwd.";
 }
 
 /* ------------------------------------------------------------
