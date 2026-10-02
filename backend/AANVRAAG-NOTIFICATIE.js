@@ -148,6 +148,46 @@ function verwerkOnverzondenMails() {
              " fouten, quota rest: " + MailApp.getRemainingDailyQuota());
 }
 
+/* ------------------------------------------------------------
+   ZELFTEST (één klik in de editor): controleert of de juiste
+   spreadsheet wordt gevonden, telt de nog te mailen rijen en
+   stuurt een testmail. Het resultaat zie je in het log.
+   ------------------------------------------------------------ */
+function testInstellingen() {
+  var uit = [];
+  var gevonden = vindBlad();
+  var blad = gevonden.blad;
+  uit.push("Bestand gevonden: " + gevonden.bestandId);
+  uit.push("Titel:            " + blad.getParent().getName());
+  uit.push("Tabblad:          " + blad.getName());
+  uit.push("Rijen (incl. kop): " + blad.getLastRow());
+
+  if (blad.getLastColumn() < MAILMARK_KOLOM + 1) {
+    blad.getRange(1, MAILMARK_KOLOM + 1).setValue("Mail verstuurd");
+    uit.push("Kop 'Mail verstuurd' toegevoegd in kolom T.");
+  } else {
+    uit.push("Kop 'Mail verstuurd' aanwezig in kolom T.");
+  }
+
+  var data = blad.getDataRange().getValues();
+  var teMailen = 0;
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][MAILMARK_KOLOM]) === "ja") continue;
+    var gevuld = 0;
+    for (var t = 0; t < 6; t++) {
+      if (String(data[i][t] || "").length > 0) gevuld++;
+    }
+    if (gevuld === 0) continue;
+    teMailen++;
+  }
+  uit.push("Nog te mailen rijen: " + teMailen);
+
+  var log = uit.join("\n");
+  Logger.log(log);
+  MailApp.sendEmail(MELDINGADRESSEN[0], "Zelftest autovergunning-notificatie", log);
+  return log;
+}
+
 /* Bouwt de meldingstekst op basis van één rij uit het tabblad. */
 function bouwMeldingTekst(r, sheetUrl) {
   var soort = String(r[1] || "").trim();
@@ -210,11 +250,34 @@ function vindBlad() {
     }
   }
   if (kandidaten.length === 0) {
-    throw new Error("spreadsheet 'Autovergunningen' niet gevonden " +
-                    "(is hij gedeeld met dit account?)");
+    throw new Error("spreadsheet 'Autovergunningen' niet gevonden - " +
+                    "is de sheet gedeeld met dit account (Bewerker) en " +
+                    "heet hij precies 'Autovergunningen'?");
   }
-  var bestand = SpreadsheetApp.openById(kandidaten[0].getId());
-  var blad = bestand.getSheetByName("Aanvragen") ||
-             bestand.insertSheet("Aanvragen");
-  return { blad: blad, bestandId: kandidaten[0].getId() };
+  Logger.log("Kandidaten gevonden: " + kandidaten.length);
+
+  /* kies het bestand met het juiste tabblad 'Aanvragen' inclusief
+     de kop 'Betaalreferentie' (kolom P), zodat we nooit in een
+     dummy-bestand terechtkomen */
+  for (var i = 0; i < kandidaten.length; i++) {
+    var bestand;
+    try {
+      bestand = SpreadsheetApp.openById(kandidaten[i].getId());
+    } catch (fout) {
+      continue;
+    }
+    var blad = bestand.getSheetByName("Aanvragen");
+    if (!blad) continue;
+    var koppen = blad.getRange(1, 1, 1, 20).getValues()[0];
+    if (String(koppen[15] || "").trim() === "Betaalreferentie") {
+      return { blad: blad, bestandId: kandidaten[i].getId() };
+    }
+  }
+
+  /* geen van de kandidaten heeft het herkenbare tabblad: pak de
+     eerste en bouw het tabblad als die niet bestaat */
+  var beste = SpreadsheetApp.openById(kandidaten[0].getId());
+  var bladBeste = beste.getSheetByName("Aanvragen") ||
+                  beste.insertSheet("Aanvragen");
+  return { blad: bladBeste, bestandId: kandidaten[0].getId() };
 }
