@@ -75,12 +75,11 @@ function toonGeluktPagina() {
   var sectie = document.getElementById("geluktPagina");
   if (sectie) { sectie.hidden = false; }
   if (form)   { form.hidden = true; }
-  var kosten = document.getElementById("geluktKostenTekst");
-  if (kosten) {
-    kosten.textContent = laatsteSoortAanvraag === "duplicaat"
-      ? "Let op: toekenning is pas definitief na goedkeuring. De €5 voor de duplicaat vergunning wordt pas bij toekenning in rekening gebracht."
-      : "Let op: toekenning is pas definitief na goedkeuring. De borg van €25 voor de sleutel wordt pas bij toekenning in rekening gebracht.";
-  }
+  var isDuplicaat = laatsteSoortAanvraag === "duplicaat";
+  var nieuw = document.getElementById("geluktNieuw");
+  var duplicaat = document.getElementById("geluktDuplicaat");
+  if (nieuw)     { nieuw.hidden = isDuplicaat; }
+  if (duplicaat) { duplicaat.hidden = !isDuplicaat; }
   window.scrollTo(0, 0);
 }
 
