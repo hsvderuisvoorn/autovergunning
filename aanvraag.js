@@ -143,6 +143,24 @@ function koppelKalender(tekstId, kalenderId) {
   });
 }
 
+/* Zet automatisch streepjes tussen de datum tijdens het typen:
+   19061967  ->  19-06-1967 */
+function zetDatumMasker(veld) {
+  if (!veld) { return; }
+  veld.addEventListener("input", function () {
+    var cijfers = veld.value.replace(/\D/g, "").slice(0, 8);
+    var resultaat = "";
+    if (cijfers.length > 4) {
+      resultaat = cijfers.slice(0, 2) + "-" + cijfers.slice(2, 4) + "-" + cijfers.slice(4);
+    } else if (cijfers.length > 2) {
+      resultaat = cijfers.slice(0, 2) + "-" + cijfers.slice(2);
+    } else {
+      resultaat = cijfers;
+    }
+    if (veld.value !== resultaat) { veld.value = resultaat; }
+  });
+}
+
 /* ------------------------------------------------------------
    Wachtrij (offline-opslag)
    ------------------------------------------------------------ */
@@ -427,6 +445,10 @@ function koppelKlaarzetten() {
   /* kalender naar handmatig datumveld koppelen */
   koppelKalender("datumAanvraag", "datumAanvraagKalender");
   koppelKalender("geboortedatum", "geboortedatumKalender");
+
+  /* automatische streepjes in datumvelden */
+  zetDatumMasker(document.getElementById("datumAanvraag"));
+  zetDatumMasker(document.getElementById("geboortedatum"));
 
   /* nieuw/duplicaat: borg €25 (nieuw) versus €5-akkoord (duplicaat),
    en bij duplicaat is de invalidenkaart niet van toepassing */
