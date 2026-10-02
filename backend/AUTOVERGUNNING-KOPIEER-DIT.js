@@ -35,6 +35,11 @@ function doPost(e) {
     json = {};
   }
 
+  /* een apart verzoeksoort: aanvrager meldt dat de betaling is gedaan */
+  if (json.type === "betaling-gemeld") {
+    return verwerkBetaalMelding(json);
+  }
+
   var blad = koppelSpreadsheet().blad;
   blad.appendRow([
     naarDagMaandJaar(json.datumAanvraag),          /* A datum aanvraag (dd-mm-jjjj)  */
@@ -51,12 +56,47 @@ function doPost(e) {
     json.avgAkkoord         === true ? "ja" : "",  /* L akkoord AVG                    */
     json.voorwaardenCheckbox === true ? "ja" : "", /* M akkoord voorwaarden (checkbox)*/
     vandaagTekst(),                                 /* N ingediend op (dd-mm-jjjj hh:mm) */
-    json.duplicaatKostenAkkoord === true ? "ja" : "" /* O akkoord €5 duplicaat        */
+    json.duplicaatKostenAkkoord === true ? "ja" : "", /* O akkoord €5 duplicaat        */
+    json.betaalReferentie   || "",                 /* P betaalreferentie (alleen duplicaat) */
+    "",                                             /* Q betaling gemeld (via knop)    */
+    "",                                             /* R betaling gemeld op (tijdstip) */
+    ""                                              /* S betaald gecontroleerd (penningmeester) */
   ]);
 
   opmaakToepassen(blad);
 
   return ContentService.createTextOutput(JSON.stringify({ ok: true }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/* ------------------------------------------------------------
+   Aanvrager meldt 'ik heb betaald' (duplicaat, via QR-code).
+   Zoekt de rij aan de hand van de betaalreferentie (kolom P) en
+   zet 'ja' + tijdstip in kolommen Q en R.
+   ------------------------------------------------------------ */
+function verwerkBetaalMelding(json) {
+  var blad = koppelSpreadsheet().blad;
+  var ref = String(json.betaalReferentie || "").trim();
+  if (!ref) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, reden: "geen-referentie" }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  var laatste = blad.getLastRow();
+  var gevonden = 0;
+  if (laatste >= 2) {
+    var waarden = blad.getRange(2, 1, laatste - 1, 19).getValues();
+    for (var i = 0; i < waarden.length; i++) {
+      if (String(waarden[i][15] || "").trim() === ref) {
+        var rij = i + 2;
+        blad.getRange(rij, 17).setValue("ja");
+        blad.getRange(rij, 18).setValue(vandaagTekst());
+        kleurSoortEnInvalide(blad, laatste);
+        gevonden = 1;
+        break;
+      }
+    }
+  }
+  return ContentService.createTextOutput(JSON.stringify({ ok: gevonden === 1, gevonden: gevonden === 1 }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -75,7 +115,7 @@ function opmaakToepassen(blad) {
   blad.setRowHeight(1, 24);
   blad.setFrozenRows(1);
 
-  var kop = blad.getRange(1, 1, 1, 15);
+  var kop = blad.getRange(1, 1, 1, 19);
   kop.setFontWeight("bold")
      .setBackground("#1b5e20")
      .setFontColor("#ffffff")
@@ -88,7 +128,7 @@ function opmaakToepassen(blad) {
 
   var laatste = blad.getLastRow();
   if (laatste >= 2) {
-    var data = blad.getRange(2, 1, laatste - 1, 15);
+    var data = blad.getRange(2, 1, laatste - 1, 19);
     data.setFontFamily("Arial")
         .setFontSize(10)
         .setVerticalAlignment("middle")
@@ -108,18 +148,22 @@ function opmaakToepassen(blad) {
    rij en alle rijen eronder). */
 function fitKolombreedtes(blad, laatste) {
   if (laatste < 1) laatste = 1;
-  var kopRij = blad.getRange(1, 1, 1, 15).getValues()[0];
-  var waarden = laatste >= 2 ? blad.getRange(2, 1, laatste - 1, 15).getValues() : [];
+  var kopRij = blad.getRange(1, 1, 1, 19).getValues()[0];
+  var waarden = laatste >= 2 ? blad.getRange(2, 1, laatste - 1, 19).getValues() : [];
   var maxPerKolom = {
     1: 14,                                    /* A datum compact                   */
     2: 14,                                    /* B soort aanvraag compact          */
     8: 14,                                    /* H invalidenkaart compact          */
     14: 20,                                   /* N ingediend op compact            */
-    15: 20                                    /* O akkoord €5 duplicaat compact    */
+    15: 20,                                   /* O akkoord €5 duplicaat compact    */
+    16: 18,                                   /* P betaalreferentie compact        */
+    17: 14,                                   /* Q betaling gemeld compact         */
+    18: 20,                                   /* R betaling gemeld op compact      */
+    19: 20                                    /* S betaald gecontroleerd compact   */
   };
   var limietNormaal = 45;
   var limietWrap = 30;
-  for (var c = 0; c < 15; c++) {
+  for (var c = 0; c < 19; c++) {
     var kolom = c + 1;
     var langste = String(kopRij[c] || "").length;
     for (var r = 0; r < waarden.length; r++) {
@@ -140,17 +184,23 @@ function fitKolombreedtes(blad, laatste) {
    - B soort aanvraag: nieuw = lichtgroen, duplicaat = amber
    - H invalidenkaart: ja = lichtgroen, nee = lichtrood               */
 function kleurSoortEnInvalide(blad, laatste) {
-  var waarden = blad.getRange(2, 1, laatste - 1, 15).getValues();
+  var waarden = blad.getRange(2, 1, laatste - 1, 19).getValues();
   for (var i = 0; i < waarden.length; i++) {
     var rij = i + 2;
     var soort = String(waarden[i][1] || "").toLowerCase();    /* B */
     var invalide = String(waarden[i][7] || "").toLowerCase(); /* H */
+    var gemeld = String(waarden[i][16] || "").toLowerCase();  /* Q */
+    var gecontroleerd = String(waarden[i][18] || "").toLowerCase(); /* S */
     blad.getRange(rij, 2).setBackground(
       soort === "duplicaat" ? "#fff3cd" :
       soort === "nieuw"     ? "#e8f5e9" : "#ffffff");
     blad.getRange(rij, 8).setBackground(
       invalide === "ja" ? "#e8f5e9" :
       invalide === "nee" ? "#ffcdd2" : "#ffffff");
+    blad.getRange(rij, 17).setBackground(
+      gemeld === "ja" ? "#dcedc8" : "#ffffff");
+    blad.getRange(rij, 19).setBackground(
+      gecontroleerd === "ja" ? "#a5d6a7" : "#ffffff");
   }
 }
 
@@ -185,7 +235,9 @@ function koppelSpreadsheet() {
       "Achternaam", "Geboortedatum", "Vispasnummer", "Invalidenkaart",
       "Invalidenkaartnummer", "Akkoord voorwaarden",
       "Akkoord borg €25 sleutel", "Akkoord AVG",
-      "Akkoord voorwaarden", "Ingediend op", "Akkoord €5 duplicaat"
+      "Akkoord voorwaarden", "Ingediend op", "Akkoord €5 duplicaat",
+      "Betaalreferentie", "Betaling gemeld", "Betaling gemeld op",
+      "Betaald gecontroleerd"
     ];
     blad.getRange(1, 1, 1, koppen.length)
         .setValues([koppen])

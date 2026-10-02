@@ -318,6 +318,32 @@ button#verstuurBtn:disabled {
 #kopieerBetaalBtn:hover { filter: brightness(1.12); }
 #kopieerStatus { color: var(--ok); }
 
+/* ================= BETALING MELDEN (DUPLICAAT) ================= */
+.betaal-meld-blok {
+  background: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  border-left: 4px solid #1b5e20;
+  border-radius: 0.6rem;
+  padding: 1.1rem;
+  margin: 0 0 1.2rem;
+}
+.betaal-meld-blok p { font-size: 1rem; }
+#betaalGemeldBtn {
+  background: #1b5e20;
+  color: #fff;
+  border: none;
+  border-radius: 0.4rem;
+  padding: 0.7rem 1.4rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin: 0.3rem 0;
+}
+#betaalGemeldBtn:hover { filter: brightness(1.12); }
+#betaalGemeldBtn:disabled { background: #9e9e9e; cursor: default; }
+#betaalGemeldStatus.ok { color: #2e7d32; font-weight: 700; }
+#betaalGemeldStatus.fout { color: var(--fout); font-weight: 700; }
+
 /* ================= BLOKKERENDE FOUTMELDING ================= */
 .blokkeer-fout {
   margin: 0.4rem 0 0;

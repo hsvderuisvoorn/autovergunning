@@ -23,6 +23,7 @@ var BACKEND_URL = "https://script.google.com/macros/s/AKfycbzVFiPhXg3rM-IadQH0oB
 var WACHTRIJ_SLEUTEL = "wachtrijAutovergunning";
 var laatsteSoortAanvraag = "";
 var laatsteOvv = "";
+var laatsteRef = "";
 
 /* ------------------------------------------------------------
    Betaalgegevens duplicaat (EPC/SEPA QR en handmatige overboeking)
@@ -33,9 +34,19 @@ var BANK_NAAM = "Hengelsportver. De Ruisvoorn";
 var DUPLICAAT_BEDRAG = "5.00";
 var QR_SERVICE = "https://api.qrserver.com/v1/create-qr-code/";
 
+function maakReferentie() {
+  var t = new Date();
+  var deel1 = t.getTime().toString(36).toUpperCase().slice(-6);
+  var deel2 = Math.random().toString(36).toUpperCase().slice(2, 6);
+  return "DUP-" + deel1 + "-" + deel2;
+}
+
 function maakOvv(a) {
   var naam = ((a.voornaam || "") + " " + (a.achternaam || "")).trim();
-  return ("Duplicaat Autovergunning " + naam).trim().slice(0, 140);
+  var basis = "Duplicaat Autovergunning " + naam;
+  var ref = a.betaalReferentie || "";
+  if (ref) { basis = ref + " " + basis; }
+  return basis.trim().slice(0, 140);
 }
 
 /* EPC QR-overboekingstekst (SEPA), herkend door Nederlandse bankapps */
@@ -67,6 +78,39 @@ function vulBetaalgegevensIn() {
   var o2 = document.getElementById("qrOvvHandmatig");
   if (o1) { o1.textContent = ovv; }
   if (o2) { o2.textContent = ovv; }
+  var re = document.getElementById("qrRef");
+  if (re) { re.textContent = laatsteRef || "&mdash;"; }
+}
+
+/* Melding 'betaling gedaan' (alleen bij duplicaat via de QR) naar
+   de backend sturen. */
+function verstuurBetaalMelding() {
+  var btn = document.getElementById("betaalGemeldBtn");
+  function toonMeldStatus(t, soort) {
+    var el = document.getElementById("betaalGemeldStatus");
+    if (!el) { return; }
+    el.hidden = false;
+    el.style.display = "block";
+    el.textContent = t;
+    el.className = "hulp-tekst" + (soort ? " " + soort : "");
+  }
+  if (!laatsteRef) {
+    toonMeldStatus("Geen betaalreferentie gevonden. Mail secretariaat@hsvderuisvoorn.nl.", "fout");
+    return;
+  }
+  if (btn) { btn.disabled = true; }
+  toonMeldStatus("Bevestiging wordt verstuurd...", "");
+  fetch(BACKEND_URL, {
+    method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ type: "betaling-gemeld", betaalReferentie: laatsteRef })
+  }).then(function () {
+    toonMeldStatus("Bedankt! Uw betaling is doorgegeven; de club verwerkt het nu en stuurt de duplicaat zo snel mogelijk toe.", "ok");
+  }).catch(function () {
+    if (btn) { btn.disabled = false; }
+    toonMeldStatus("Geen verbinding. Probeer het zo meteen nog eens of mail secretariaat@hsvderuisvoorn.nl met uw betaalreferentie " + laatsteRef + ".", "fout");
+  });
 }
 
 /* ------------------------------------------------------------
@@ -163,6 +207,7 @@ function verstuurWachtrij() {
   var beloften = rij.map(function (item) {
     return verstuurAanvraag(item).then(function () {
       laatsteSoortAanvraag = item.soortAanvraag || "";
+      laatsteRef = item.betaalReferentie || "";
       laatsteOvv = maakOvv(item);
       var overig = haalWachtrij().filter(function (x) {
         return x.wachtrijId !== item.wachtrijId;
@@ -331,6 +376,12 @@ function verstuurFormulier(e) {
   }
 
   var aanvraag = verzamelAanvraag();
+  if (aanvraag.soortAanvraag === "duplicaat") {
+    aanvraag.betaalReferentie = maakReferentie();
+    laatsteRef = aanvraag.betaalReferentie;
+  } else {
+    laatsteRef = "";
+  }
   laatsteSoortAanvraag = aanvraag.soortAanvraag;
   laatsteOvv = maakOvv(aanvraag);
 
@@ -474,6 +525,12 @@ function koppelKlaarzetten() {
         klaar();
       }
     });
+  }
+
+  /* 'ik heb betaald' melding versturen (duplicaat via QR) */
+  var betaalGemeldBtn = document.getElementById("betaalGemeldBtn");
+  if (betaalGemeldBtn) {
+    betaalGemeldBtn.addEventListener("click", verstuurBetaalMelding);
   }
 
   /* online -> wachtrij leegpompen */
