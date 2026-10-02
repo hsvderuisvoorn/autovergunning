@@ -5,9 +5,8 @@
    - Zet HET in het Apps Script-project dat gekoppeld zit aan de
      spreadsheet "Autovergunningen".
    - De web-app slaat uitsluitend aanvragen op in het tabblad
-     "Aanvragen". Er wordt géén mail verstuurd vanuit dit project;
-     dat kan optioneel via een apart timer-project (zie het
-     opgave-jeugdviscursus-project voor hetzelfde patroon).
+     "Aanvragen". Bij elke nieuwe aanvraag wordt automatisch een
+     e-mailmelding verstuurd naar MAIL_ONTVANGER (hieronder).
 
    HOE INSTALLEREN? (eenmalig, in 4 stappen)
    1. Maak op de Drive een spreadsheet aan en hernoem die naar
@@ -18,8 +17,14 @@
       Uitvoeren als: Ik  |  Toegang: Iedereen > Implementeren.
    4. Kopieer de /exec-URL en zet die in aanvraag.js
       (BACKEND_URL).
-   GEEN TRIGGER NODIG HIER: dit project verstuurt geen mail.
+   EERSTE MAAL: bij de allereerste verzending wordt gevraagd of
+   het script e-mails mag versturen (MailApp) > Toestaan.
    ------------------------------------------------------------ */
+
+/* E-mailadres waar de melding van een nieuwe aanvraag naartoe
+   gaat. Meerdere adressen kan door een komma-gescheiden lijst
+   te gebruiken: "a@club.nl, b@club.nl" */
+var MAIL_ONTVANGER = "secretariaat@hsvderuisvoorn.nl";
 
 /* ------------------------------------------------------------
    Ontvangt het formulier en zet de aanvraag als rij in de
@@ -65,8 +70,51 @@ function doPost(e) {
 
   opmaakToepassen(blad);
 
+  /* e-mailmelding; mag de aanvraag zelf nooit breken */
+  try {
+    verstuurAanvraagMelding(json);
+  } catch (mailFout) {
+    Logger.log("E-mailmelding aanvraag mislukt: " + mailFout);
+  }
+
   return ContentService.createTextOutput(JSON.stringify({ ok: true }))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+/* ------------------------------------------------------------
+   Stuurt een e-mailmelding naar MAIL_ONTVANGER zodra een nieuwe
+   aanvraag is opgeslagen. Wordt los van de aanvraag afgehandeld
+   (een mislukte mail breekt de aanvraag niet).
+   ------------------------------------------------------------ */
+function verstuurAanvraagMelding(json) {
+  var soort = json.soortAanvraag === "duplicaat" ? "duplicaat" : "nieuw";
+  var naam = [json.voorletters, json.voornaam, json.achternaam]
+    .join(" ").replace(/\s+/g, " ").trim();
+
+  var regels = [];
+  regels.push("Er is een nieuwe aanvraag voor een Autovergunning binnengekomen.");
+  regels.push("");
+  regels.push("Datum aanvraag:  " + naarDagMaandJaar(json.datumAanvraag));
+  regels.push("Soort:           " + (soort === "duplicaat" ? "Duplicaat vergunning" : "Nieuwe vergunning"));
+  regels.push("Naam:            " + naam);
+  regels.push("Geboortedatum:   " + nlDatum(json.geboortedatum));
+  regels.push("Vispasnummer:    " + (json.vispasnummer || "-"));
+  if (soort === "duplicaat") {
+    regels.push("Akkoord €5:      " + (json.duplicaatKostenAkkoord === true ? "akkoord" : "niet"));
+    regels.push("Betaalreferentie:" + (json.betaalReferentie || "-"));
+  } else {
+    regels.push("Invalidenkaart:  " + (json.invalidenkaart === "ja" ? "ja" : "nee") +
+                (json.invalidenkaartNummer ? " (" + json.invalidenkaartNummer + ")" : ""));
+    regels.push("Borg sleutel €25: " + (json.borgAkkoord === true ? "akkoord" : "niet"));
+  }
+  regels.push("Akkoord voorwaarden: " + (json.voorwaardenCheckbox === true ? "ja" : "nee"));
+  regels.push("");
+  regels.push("Bekijk de aanvraag in het overzicht:");
+  regels.push(koppelSpreadsheet().blad.getParent().getUrl());
+
+  var onderwerp = "Autovergunning " +
+    (soort === "duplicaat" ? "duplicaat" : "aanvraag") + " ontvangen: " + naam;
+  MailApp.sendEmail(MAIL_ONTVANGER, onderwerp, regels.join("\n"));
 }
 
 /* ------------------------------------------------------------
