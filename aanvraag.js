@@ -22,6 +22,52 @@ var BACKEND_URL = "https://script.google.com/macros/s/AKfycbzVFiPhXg3rM-IadQH0oB
 
 var WACHTRIJ_SLEUTEL = "wachtrijAutovergunning";
 var laatsteSoortAanvraag = "";
+var laatsteOvv = "";
+
+/* ------------------------------------------------------------
+   Betaalgegevens duplicaat (EPC/SEPA QR en handmatige overboeking)
+   ------------------------------------------------------------ */
+var BANK_IBAN = "NL09RABO0141976950";
+var BANK_IBAN_ZICHTBAAR = "NL09 RABO 0141 9769 50";
+var BANK_NAAM = "Hengelsportver. De Ruisvoorn";
+var DUPLICAAT_BEDRAG = "5.00";
+var QR_SERVICE = "https://api.qrserver.com/v1/create-qr-code/";
+
+function maakOvv(a) {
+  var naam = ((a.voornaam || "") + " " + (a.achternaam || "")).trim();
+  return ("Duplicaat Autovergunning " + naam).trim().slice(0, 140);
+}
+
+/* EPC QR-overboekingstekst (SEPA), herkend door Nederlandse bankapps */
+function maakEpcQr(ovv) {
+  return [
+    "BCD",
+    "002",
+    "1",
+    "SCT",
+    "",                                   /* BIC (leeg, bank vult in)   */
+    BANK_NAAM,                            /* begunstigde                */
+    BANK_IBAN,                            /* rekeningnummer (geen spaties) */
+    "EUR" + DUPLICAAT_BEDRAG,             /* bedrag                     */
+    "",                                   /* purpose (leeg)             */
+    ovv || "",                            /* o.v.v.                     */
+    ""                                    /* extra (leeg)               */
+  ].join("\n");
+}
+
+function vulBetaalgegevensIn() {
+  var ovv = laatsteOvv || "Duplicaat Autovergunning";
+  var img = document.getElementById("qrDuplicaat");
+  if (img) {
+    img.src = QR_SERVICE + "?size=300x300&data=" +
+      encodeURIComponent(maakEpcQr(ovv)) + "&margin=0";
+    img.hidden = false;
+  }
+  var o1 = document.getElementById("qrOvv");
+  var o2 = document.getElementById("qrOvvHandmatig");
+  if (o1) { o1.textContent = ovv; }
+  if (o2) { o2.textContent = ovv; }
+}
 
 /* ------------------------------------------------------------
    Standaard vandaag invullen bij "Datum aanvraag"
@@ -86,6 +132,7 @@ function toonGeluktPagina() {
   var duplicaat = document.getElementById("geluktDuplicaat");
   if (nieuw)     { nieuw.hidden = isDuplicaat; }
   if (duplicaat) { duplicaat.hidden = !isDuplicaat; }
+  if (isDuplicaat) { vulBetaalgegevensIn(); }
   if (sectie && sectie.scrollIntoView) { sectie.scrollIntoView(); }
   window.scrollTo(0, 0);
 }
@@ -116,6 +163,7 @@ function verstuurWachtrij() {
   var beloften = rij.map(function (item) {
     return verstuurAanvraag(item).then(function () {
       laatsteSoortAanvraag = item.soortAanvraag || "";
+      laatsteOvv = maakOvv(item);
       var overig = haalWachtrij().filter(function (x) {
         return x.wachtrijId !== item.wachtrijId;
       });
@@ -284,6 +332,7 @@ function verstuurFormulier(e) {
 
   var aanvraag = verzamelAanvraag();
   laatsteSoortAanvraag = aanvraag.soortAanvraag;
+  laatsteOvv = maakOvv(aanvraag);
 
   if (!BACKEND_URL) {
     aanvraag.wachtrijId = "av-" + Date.now() + "-" +
@@ -392,6 +441,40 @@ function koppelKlaarzetten() {
   herstel(document.getElementById("duplicaatKostenAkkoord"), document.getElementById("duplicaatKostenAkkoordFout"));
   herstel(document.getElementById("avgAkkoord"), document.getElementById("avgAkkoordFout"));
   herstel(document.getElementById("voorwaardenCheckbox"), document.getElementById("voorwaardenCheckboxFout"));
+
+  /* kopieer betaalgegevens (duplicaat) */
+  var kopieerBtn = document.getElementById("kopieerBetaalBtn");
+  if (kopieerBtn) {
+    kopieerBtn.addEventListener("click", function () {
+      var ovv = laatsteOvv || "Duplicaat Autovergunning";
+      var tekst = "Betaalgegevens duplicaat Autovergunning\n" +
+        "Rekeningnummer: " + BANK_IBAN_ZICHTBAAR + "\n" +
+        "t.n.v.: " + BANK_NAAM + "\n" +
+        "Bedrag: EUR " + DUPLICAAT_BEDRAG + "\n" +
+        "o.v.v.: " + ovv;
+      function klaar() {
+        var st = document.getElementById("kopieerStatus");
+        if (st) {
+          st.hidden = false;
+          st.style.display = "block";
+          setTimeout(function () { if (st) { st.hidden = true; } }, 3000);
+        }
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(tekst).then(klaar).catch(function () { klaar(); });
+      } else {
+        var ta = document.createElement("textarea");
+        ta.value = tekst;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand("copy"); } catch (e) { /* niets */ }
+        document.body.removeChild(ta);
+        klaar();
+      }
+    });
+  }
 
   /* online -> wachtrij leegpompen */
   if ("ononline" in window) {

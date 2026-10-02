@@ -274,6 +274,50 @@ button#verstuurBtn:disabled {
 }
 .belangrijk p { margin: 0; }
 
+/* ================= BETAALBLOK (DUPLICAAT) ================= */
+.betaal-blok {
+  background: #f1f8e9;
+  border: 1px solid #c5e1a5;
+  border-radius: 0.6rem;
+  padding: 1.1rem;
+  margin: 0 0 1.2rem;
+}
+.betaal-titel {
+  font-weight: 800;
+  color: var(--hoofd-groen);
+  margin: 0 0 0.8rem;
+  font-size: 1.15rem;
+}
+.betaal-row {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.qr-img {
+  width: 150px;
+  height: auto;
+  border: 1px solid #c5c5c5;
+  border-radius: 0.4rem;
+  padding: 4px;
+  background: #fff;
+}
+.betaal-tekst { flex: 1; min-width: 220px; font-size: 1rem; }
+.betaal-tekst p { margin: 0 0 0.6rem; }
+.betaal-gegevens { margin: 0 0 0.8rem; padding-left: 1.1rem; list-style: disc; }
+.betaal-gegevens li { margin-bottom: 0.3rem; }
+#kopieerBetaalBtn {
+  background: #1b5e20;
+  color: #fff;
+  border: none;
+  border-radius: 0.4rem;
+  padding: 0.55rem 1rem;
+  font-size: 1rem;
+  cursor: pointer;
+}
+#kopieerBetaalBtn:hover { filter: brightness(1.12); }
+#kopieerStatus { color: var(--ok); }
+
 /* ================= BLOKKERENDE FOUTMELDING ================= */
 .blokkeer-fout {
   margin: 0.4rem 0 0;

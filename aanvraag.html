@@ -171,6 +171,25 @@
 
       <div id="geluktDuplicaat" hidden>
         <p>Wij hebben uw aanvraag voor een duplicaat Autovergunning ontvangen. Wij sturen de duplicaat <strong>zo snel mogelijk toe</strong>, nadat u de kosten van <strong>&euro;5</strong> heeft voldaan.</p>
+
+        <div class="betaal-blok">
+          <p class="betaal-titel">Betalen van de kosten (&euro;5)</p>
+          <div class="betaal-row">
+            <img id="qrDuplicaat" class="qr-img" src="" alt="QR-code betaling &euro;5 duplicaat Autovergunning" onerror="this.hidden=true">
+            <div class="betaal-tekst">
+              <p><strong>Zo werkt het:</strong> open uw eigen bankapp (bijv. ING, Rabobank of ABN AMRO), kies <em>&quot;Scannen&quot;</em> of <em>&quot;QR betalen&quot;</em> en scan de QR-code hiernaast. Het rekeningnummer, het bedrag van <strong>&euro;5</strong> en de o.v.v. <em id="qrOvv">&hellip;</em> staan dan al ingevuld &mdash; u hoeft alleen nog te bevestigen.</p>
+              <p>Handmatig overmaken kan ook:</p>
+              <ul class="betaal-gegevens">
+                <li>Rekeningnummer: <strong>NL09 RABO 0141 9769 50</strong></li>
+                <li>t.n.v.: <strong>Hengelsportver. De Ruisvoorn</strong></li>
+                <li>Bedrag: <strong>&euro;5,00</strong></li>
+                <li>o.v.v.: <strong id="qrOvvHandmatig">&hellip;</strong></li>
+              </ul>
+              <button type="button" id="kopieerBetaalBtn">Kopieer betaalgegevens</button>
+              <p id="kopieerStatus" class="hulp-tekst" hidden>Betaalgegevens zijn gekopieerd.</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <p>Heeft u vragen? Stuur die naar <a href="mailto:secretariaat@hsvderuisvoorn.nl">secretariaat@hsvderuisvoorn.nl</a>.</p>
