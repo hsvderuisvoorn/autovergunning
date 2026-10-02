@@ -73,13 +73,20 @@ function toonStatus(tekst, soort) {
 function toonGeluktPagina() {
   var form = document.getElementById("aanvraagForm");
   var sectie = document.getElementById("geluktPagina");
-  if (sectie) { sectie.hidden = false; }
-  if (form)   { form.hidden = true; }
+  if (sectie) {
+    sectie.hidden = false;
+    sectie.style.display = "block";
+  }
+  if (form) {
+    form.hidden = true;
+    form.style.display = "none";
+  }
   var isDuplicaat = laatsteSoortAanvraag === "duplicaat";
   var nieuw = document.getElementById("geluktNieuw");
   var duplicaat = document.getElementById("geluktDuplicaat");
   if (nieuw)     { nieuw.hidden = isDuplicaat; }
   if (duplicaat) { duplicaat.hidden = !isDuplicaat; }
+  if (sectie && sectie.scrollIntoView) { sectie.scrollIntoView(); }
   window.scrollTo(0, 0);
 }
 
@@ -108,6 +115,7 @@ function verstuurWachtrij() {
   if (!rij.length) { return Promise.resolve(0); }
   var beloften = rij.map(function (item) {
     return verstuurAanvraag(item).then(function () {
+      laatsteSoortAanvraag = item.soortAanvraag || "";
       var overig = haalWachtrij().filter(function (x) {
         return x.wachtrijId !== item.wachtrijId;
       });
@@ -120,7 +128,7 @@ function verstuurWachtrij() {
   return Promise.all(beloften).then(function (resultaten) {
     var geslaagd = resultaten.reduce(function (a, b) { return a + b; }, 0);
     if (geslaagd > 0 && !haalWachtrij().length) {
-      toonStatus("Uw aanvraag is verstuurd en is in goede orde ontvangen.", "ok");
+      toonGeluktPagina();
       resetFormulier();
     }
     return geslaagd;
@@ -287,13 +295,17 @@ function verstuurFormulier(e) {
 
   toonStatus("Aanvraag wordt verstuurd...", "info");
   verstuurAanvraag(aanvraag).then(function () {
-    toonGeluktPagina();
-    resetFormulier();
+    try {
+      toonGeluktPagina();
+      resetFormulier();
+    } catch (err) {
+      toonStatus("Uw aanvraag is verstuurd en is in goede orde ontvangen. De bevestigingspagina kon niet getoond worden; ververs de pagina.", "info");
+    }
   }).catch(function () {
     aanvraag.wachtrijId = "av-" + Date.now() + "-" +
       Math.random().toString(36).slice(2, 8);
     bewaarWachtrij(haalWachtrij().concat([aanvraag]));
-    toonStatus("Geen verbinding (of de backend is nog niet ingesteld). De aanvraag is bewaard en wordt later automatisch verstuurd.", "info");
+    toonStatus("Geen verbinding: uw aanvraag is opgeslagen en wordt automatisch verzonden zodra u weer online bent. U krijgt dan ook de bevestiging te zien.", "info");
   });
 }
 
