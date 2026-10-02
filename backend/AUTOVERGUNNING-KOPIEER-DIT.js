@@ -229,18 +229,30 @@ function koppelSpreadsheet() {
     nieuwGemaakt = true;
   }
 
+  var koppen = [
+    "Datum aanvraag", "Soort aanvraag", "Voorletters", "Voornaam",
+    "Achternaam", "Geboortedatum", "Vispasnummer", "Invalidenkaart",
+    "Invalidenkaartnummer", "Akkoord voorwaarden",
+    "Akkoord borg €25 sleutel", "Akkoord AVG",
+    "Akkoord voorwaarden", "Ingediend op", "Akkoord €5 duplicaat",
+    "Betaalreferentie", "Betaling gemeld", "Betaling gemeld op",
+    "Betaald gecontroleerd"
+  ];
+
   if (nieuwGemaakt || blad.getLastRow() === 0) {
-    var koppen = [
-      "Datum aanvraag", "Soort aanvraag", "Voorletters", "Voornaam",
-      "Achternaam", "Geboortedatum", "Vispasnummer", "Invalidenkaart",
-      "Invalidenkaartnummer", "Akkoord voorwaarden",
-      "Akkoord borg €25 sleutel", "Akkoord AVG",
-      "Akkoord voorwaarden", "Ingediend op", "Akkoord €5 duplicaat",
-      "Betaalreferentie", "Betaling gemeld", "Betaling gemeld op",
-      "Betaald gecontroleerd"
-    ];
     blad.getRange(1, 1, 1, koppen.length)
         .setValues([koppen])
+        .setFontWeight("bold")
+        .setBackground("#1b5e20")
+        .setFontColor("#ffffff");
+    opmaakToepassen(blad);
+  } else if (blad.getLastColumn() < koppen.length) {
+    /* bestaande sheet: ontbrekende kopkolommen aanvullen zodat de
+       nieuwe kolommen (referentie/gemeld/gecontroleerd e.d.) ook
+       een naam hebben */
+    var vanaf = blad.getLastColumn() + 1;
+    blad.getRange(1, vanaf, 1, koppen.length - vanaf + 1)
+        .setValues([koppen.slice(vanaf - 1)])
         .setFontWeight("bold")
         .setBackground("#1b5e20")
         .setFontColor("#ffffff");
@@ -248,6 +260,19 @@ function koppelSpreadsheet() {
   }
 
   return { blad: blad, nieuwGemaakt: nieuwGemaakt };
+}
+
+/* ------------------------------------------------------------
+   Maakt het tabblad "Aanvragen" in één klik schoon: alle oude
+   (test)rijen eruit en de koppen + opmaak opnieuw neerzetten.
+   Loopt u als function in de Apps Script-editor.
+   ------------------------------------------------------------ */
+function resetAanvragenTab() {
+  var koppel = koppelSpreadsheet();
+  koppel.blad.clear();
+  /* na clear is het tabblad leeg: koppen + opmaak opnieuw */
+  koppelSpreadsheet();
+  return "Tabblad 'Aanvragen' is leeggemaakt en opnieuw opgebouwd.";
 }
 
 /* ------------------------------------------------------------
