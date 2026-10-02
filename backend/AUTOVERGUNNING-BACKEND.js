@@ -70,14 +70,19 @@ function doPost(e) {
 
   opmaakToepassen(blad);
 
-  /* e-mailmelding; mag de aanvraag zelf nooit breken */
+  /* e-mailmelding; mag de aanvraag zelf nooit breken. De status
+     wordt in het antwoord meegegeven zodat je op afstand kunt
+     zien of de mail is verzonden. */
+  var mailStatus = "";
   try {
     verstuurAanvraagMelding(json);
+    mailStatus = "gezonden";
   } catch (mailFout) {
+    mailStatus = "mislukt: " + mailFout;
     Logger.log("E-mailmelding aanvraag mislukt: " + mailFout);
   }
 
-  return ContentService.createTextOutput(JSON.stringify({ ok: true }))
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, mail: mailStatus }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
