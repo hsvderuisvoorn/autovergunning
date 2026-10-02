@@ -190,22 +190,32 @@ function controleerAanvraag() {
     return false;
   }
 
-  var invalide = document.querySelector('input[name="invalidenkaart"]:checked');
-
-  /* 1) invalidenkaart is minimaal verplicht */
-  if (!invalide) {
-    toonStatus("Geef aan of u een invalidenkaart heeft.", "fout");
+  var soort = document.querySelector('input[name="soortAanvraag"]:checked');
+  if (!soort) {
+    toonStatus("Maak een keuze: een nieuwe vergunning of een duplicaat vergunning.", "fout");
     form.reportValidity();
     return false;
   }
-  if (invalide.value === "nee") {
-    toonStatus("U komt niet in aanmerking voor een Autovergunning: een invalidenkaart is minimaal verplicht voor een aanvraag.", "fout");
-    return false;
-  }
-  if (!document.getElementById("invalidenkaartNummer").value.trim()) {
-    toonStatus("Vul het nummer van uw invalidenkaart in.", "fout");
-    document.getElementById("invalidenkaartNummer").focus();
-    return false;
+
+  var invalide = document.querySelector('input[name="invalidenkaart"]:checked');
+
+  /* 1) alleen bij een NIEUWE vergunning is een invalidenkaart
+        minimaal verplicht; bij duplicaat niet van toepassing */
+  if (soort.value !== "duplicaat") {
+    if (!invalide) {
+      toonStatus("Geef aan of u een invalidenkaart heeft.", "fout");
+      form.reportValidity();
+      return false;
+    }
+    if (invalide.value === "nee") {
+      toonStatus("U komt niet in aanmerking voor een Autovergunning: een invalidenkaart is minimaal verplicht voor een aanvraag.", "fout");
+      return false;
+    }
+    if (!document.getElementById("invalidenkaartNummer").value.trim()) {
+      toonStatus("Vul het nummer van uw invalidenkaart in.", "fout");
+      document.getElementById("invalidenkaartNummer").focus();
+      return false;
+    }
   }
 
   /* 2) akkoord voorwaarden (radio): nee = zelfde blokkade als invalidenkaart */
@@ -221,12 +231,6 @@ function controleerAanvraag() {
   }
 
   /* 3) soort aanvraag: nieuw → borg €25, duplicaat → €5 in rekening */
-  var soort = document.querySelector('input[name="soortAanvraag"]:checked');
-  if (!soort) {
-    toonStatus("Maak een keuze: een nieuwe vergunning of een duplicaat vergunning.", "fout");
-    form.reportValidity();
-    return false;
-  }
   var borg = document.getElementById("borgAkkoord");
   var dupKosten = document.getElementById("duplicaatKostenAkkoord");
   if (soort.value === "duplicaat") {
@@ -305,19 +309,27 @@ function koppelKlaarzetten() {
 
   stelVandaagIn();
 
-  /* nieuw/duplicaat: borg €25 (nieuw) versus €5-akkoord (duplicaat) */
+  /* nieuw/duplicaat: borg €25 (nieuw) versus €5-akkoord (duplicaat),
+   en bij duplicaat is de invalidenkaart niet van toepassing */
   var kostenEl = document.getElementById("duplicaatKosten");
   var borgGroep = document.getElementById("borgGroep");
   var duplicaatGroep = document.getElementById("duplicaatGroep");
+  var invalideVeld = document.getElementById("invalideVeld");
   function toonSoortGroepen() {
     var gekozen = document.querySelector('input[name="soortAanvraag"]:checked');
     var duplicaat = !!(gekozen && gekozen.value === "duplicaat");
     if (kostenEl) { kostenEl.hidden = !duplicaat; }
     if (borgGroep) { borgGroep.hidden = duplicaat; }
     if (duplicaatGroep) { duplicaatGroep.hidden = !duplicaat; }
+    if (invalideVeld) { invalideVeld.hidden = duplicaat; }
     if (duplicaat) {
       var b = document.getElementById("borgAkkoord");
       if (b) { b.checked = false; }
+      document.querySelectorAll('input[name="invalidenkaart"]').forEach(function (r) {
+        r.checked = false;
+      });
+      var inr = document.getElementById("invalidenkaartNummer");
+      if (inr) { inr.value = ""; inr.required = false; }
     } else {
       var d = document.getElementById("duplicaatKostenAkkoord");
       if (d) { d.checked = false; }
