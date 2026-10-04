@@ -271,7 +271,11 @@ function maakMollieBetaling(ref, voornaam, achternaam) {
   if (!sleutel) { return null; }
   var body = {
     amount: { value: DUPLICAAT_BEDRAG_MOLLIE, currency: "EUR" },
-    description: ("Duplicaat Autovergunning " + String(ref || "")).slice(0, 140),
+    lines: [{
+      description: ("Duplicaat Autovergunning " + String(ref || "")).slice(0, 140),
+      quantity: 1,
+      amount: { value: DUPLICAAT_BEDRAG_MOLLIE, currency: "EUR" }
+    }],
     redirectUrl: mollieTerugUrl(),
     locale: "nl_NL",
     metadata: {
