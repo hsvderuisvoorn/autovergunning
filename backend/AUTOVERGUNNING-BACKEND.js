@@ -251,6 +251,30 @@ function mollieWebhookUrl() {
   }
 }
 
+function schrijfBetalingStatus(rij, status) {
+  var blad = koppelBetalingenTabblad();
+  blad.getRange(rij, 4).setValue(status || "onbekend");
+  if (status === "paid" || status === "authorized") {
+    blad.getRange(rij, 6).setValue(vandaagTekst());
+  }
+}
+
+/* Vraagt de actuele status rechtstreeks aan Mollie op. Wordt gebruikt
+   als de webhook van Mollie (nog) niet is binnengekomen. */
+function mollieBetaalstatus(paymentId) {
+  var sleutel = mollieApiSleutel();
+  if (!sleutel || !paymentId) { return ""; }
+  var res = UrlFetchApp.fetch(
+    MOLLIE_BETAAL_URL + "/" + encodeURIComponent(String(paymentId)), {
+      method: "get",
+      headers: { Authorization: "Bearer " + sleutel },
+      muteHttpExceptions: true
+    });
+  if (res.getResponseCode() >= 400) { return ""; }
+  var data = JSON.parse(res.getContentText());
+  return data && data.status ? String(data.status) : "";
+}
+
 /* Naam van de aanvrager opzoeken bij een betaalreferentie. */
 function zoekAanvraag(ref) {
   var gezocht = String(ref || "").trim();
@@ -363,9 +387,8 @@ function verwerkMollieWebhook(inhoud) {
   for (var i = 0; i < ids.length; i++) {
     if (String(ids[i][0] || "").trim() === id) {
       var rij = i + 2;
-      blad.getRange(rij, 4).setValue(status || "onbekend");
+      schrijfBetalingStatus(rij, status);
       if (status === "paid") {
-        blad.getRange(rij, 6).setValue(vandaagTekst());
         markeerBetalingGemeld(koppelSpreadsheet().blad,
           String(ids[i][1] || "").trim());
       }
@@ -617,9 +640,23 @@ function doGet(e) {
 
   /* aanvrager controleert (na terugkomst van Mollie) de status */
   if (act === "status") {
-    var gezocht = zoekBetaling(String(params["ref"] || "").trim());
-    return jsonpAntwoord(params["callback"], gezocht
-      ? { ok: true, status: gezocht.status }
+    var refStatus = String(params["ref"] || "").trim();
+    var gevonden = zoekBetaling(refStatus);
+    var status = gevonden ? String(gevonden.status || "") : "";
+    /* webhook nog niet binnen? dan even zelf bij Mollie navragen */
+    if (gevonden && gevonden.paymentId &&
+        status !== "paid" && status !== "authorized") {
+      var bijMollie = mollieBetaalstatus(gevonden.paymentId);
+      if (bijMollie && bijMollie !== status) {
+        status = bijMollie;
+        schrijfBetalingStatus(gevonden.rij, status);
+        if (status === "paid" || status === "authorized") {
+          markeerBetalingGemeld(koppelSpreadsheet().blad, refStatus);
+        }
+      }
+    }
+    return jsonpAntwoord(params["callback"], gevonden
+      ? { ok: true, status: status }
       : { ok: false });
   }
 
