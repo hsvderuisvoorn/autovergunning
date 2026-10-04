@@ -85,13 +85,17 @@ function doPost(e) {
   /* bij een duplicaat meteen een iDEAL-betaallink (Mollie) maken,
      zodat de aanvrager na verzenden direct kan betalen */
   var betaallink = "";
+  var betaalFout = "";
   if (isDuplicaat(json)) {
     var betaal = haalOfMaakBetaallink(json.betaalReferentie, false);
     betaallink = betaal && betaal.url ? betaal.url : "";
+    if (!betaallink && betaal) {
+      betaalFout = String(betaal.fout || "");
+    }
   }
 
   return ContentService.createTextOutput(
-    JSON.stringify({ ok: true, betaallink: betaallink }))
+    JSON.stringify({ ok: true, betaallink: betaallink, fout: betaalFout }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -291,7 +295,10 @@ function maakMollieBetaling(ref, voornaam, achternaam) {
     payload: JSON.stringify(body),
     muteHttpExceptions: true
   });
-  if (res.getResponseCode() >= 400) { return null; }
+  if (res.getResponseCode() >= 400) {
+    throw new Error("Mollie " + res.getResponseCode() + ": " +
+      String(res.getContentText()).substring(0, 200));
+  }
   var data = JSON.parse(res.getContentText());
   if (!data || !data.links || !data.links.checkout) { return null; }
   return {
@@ -325,7 +332,7 @@ function haalOfMaakBetaallink(ref, nieuw) {
       status: nieuwBetaling.status
     };
   } catch (fout) {
-    return null;
+    return { rij: 0, url: "", status: "fout", fout: String(fout) };
   }
 }
 
@@ -581,9 +588,18 @@ function doGet(e) {
     var ref = String(params["ref"] || "").trim();
     var nieuw = String(params["nieuw"] || "") === "1";
     var betaal = haalOfMaakBetaallink(ref, nieuw);
-    return jsonpAntwoord(params["callback"], (betaal && betaal.url)
-      ? { ok: true, url: betaal.url, status: betaal.status, nieuw: nieuw }
-      : { ok: false });
+if (betaal && betaal.url) {
+      return jsonpAntwoord(params["callback"], {
+        ok: true,
+        url: betaal.url,
+        status: betaal.status || "",
+        nieuw: nieuw
+      });
+    }
+    return jsonpAntwoord(params["callback"], {
+      ok: false,
+      fout: betaal ? String(betaal.fout || "geen betaallink") : "geen betaallink"
+    });
   }
 
   /* aanvrager controleert (na terugkomst van Mollie) de status */
