@@ -147,7 +147,7 @@ function markeerBetalingGemeld(blad, ref) {
    3. Mollie stuurt na het betalen de status naar deze webapp
       (webhook) en zet 'Betaling gemeld' in het tabblad "Aanvragen".
    ------------------------------------------------------------ */
-var MOLLIE_ORDERS_URL = "https://api.mollie.com/v2/orders";
+var MOLLIE_BETAAL_URL = "https://api.mollie.com/v2/payments";
 var BETALINGEN_TAB = "Betalingen";
 var DUPLICAAT_BEDRAG_MOLLIE = "5.00";
 
@@ -263,19 +263,17 @@ function zoekAanvraag(ref) {
   return null;
 }
 
-/* Maakt een Mollie-order aan. Geeft null terug bij fouten of als er
+/* Maakt een Mollie-payment aan. Geeft null terug bij fouten of als er
    geen API-sleutel is ingesteld (de QR-/handmatige betaling blijft
-   dan gewoon werken). */
+   dan gewoon werken).
+   Let op: een Mollie-betaallink is ongeveer 15 minuten geldig. Daarom
+   kan de aanvrager op de bedanktpagina ook een nieuwe link opvragen. */
 function maakMollieBetaling(ref, voornaam, achternaam) {
   var sleutel = mollieApiSleutel();
   if (!sleutel) { return null; }
   var body = {
-    amount: { value: DUPLICAAT_BEDRAG_MOLLIE, currency: "EUR" },
-    lines: [{
-      description: ("Duplicaat Autovergunning " + String(ref || "")).slice(0, 140),
-      quantity: 1,
-      amount: { value: DUPLICAAT_BEDRAG_MOLLIE, currency: "EUR" }
-    }],
+    amount: { currency: "EUR", value: DUPLICAAT_BEDRAG_MOLLIE },
+    description: ("Duplicaat Autovergunning " + String(ref || "")).slice(0, 140),
     redirectUrl: mollieTerugUrl(),
     locale: "nl_NL",
     metadata: {
@@ -286,7 +284,7 @@ function maakMollieBetaling(ref, voornaam, achternaam) {
   };
   var hook = mollieWebhookUrl();
   if (hook) { body.webhookUrl = hook; }
-  var res = UrlFetchApp.fetch(MOLLIE_ORDERS_URL, {
+  var res = UrlFetchApp.fetch(MOLLIE_BETAAL_URL, {
     method: "post",
     contentType: "application/json",
     headers: { Authorization: "Bearer " + sleutel },
