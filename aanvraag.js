@@ -18,7 +18,7 @@
 
 "use strict";
 
-var BACKEND_URL = "https://script.google.com/macros/s/AKfycbzVFiPhXg3rM-IadQH0oBSIxqnXP45iXIo8dFcKcPq9eRK155VXXUi4nwuWluK2ogXQ/exec";
+var BACKEND_URL = "https://script.google.com/macros/s/AKfycbywtlepbQVd6wMPmOzb7171NiE_3e7hgRcptalFvArpicmRGH9luarg87_naWGLmryI/exec";
 
 var WACHTRIJ_SLEUTEL = "wachtrijAutovergunning";
 var laatsteSoortAanvraag = "";
