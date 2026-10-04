@@ -154,6 +154,9 @@ function markeerBetalingGemeld(blad, ref) {
 var MOLLIE_BETAAL_URL = "https://api.mollie.com/v2/payments";
 var BETALINGEN_TAB = "Betalingen";
 var DUPLICAAT_BEDRAG_MOLLIE = "5.00";
+/* Betaalmethode. "ideal" = alleen iDEAL; leeg laten (= "") om
+   Mollie zelf de beschikbare methoden te laten tonen. */
+var MOLLIE_METHODE = "ideal";
 
 function mollieApiSleutel() {
   try {
@@ -278,6 +281,7 @@ function maakMollieBetaling(ref, voornaam, achternaam) {
   var body = {
     amount: { currency: "EUR", value: DUPLICAAT_BEDRAG_MOLLIE },
     description: ("Duplicaat Autovergunning " + String(ref || "")).slice(0, 140),
+    method: MOLLIE_METHODE,
     redirectUrl: mollieTerugUrl(),
     locale: "nl_NL",
     metadata: {
