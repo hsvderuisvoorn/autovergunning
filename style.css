@@ -376,6 +376,7 @@ button#verstuurBtn:disabled {
   cursor: pointer;
 }
 .qr-link { display: inline-block; line-height: 0; }
+#mollieUrlTekst { display: inline-block; max-width: 100%; word-break: break-all; font-size: 0.85rem; }
 .qr-link[hidden] { display: none; }
 .qr-link:hover .qr-img { border-color: #1b5e20; }
 .qr-img {

@@ -24,6 +24,7 @@ var WACHTRIJ_SLEUTEL = "wachtrijAutovergunning";
 var laatsteSoortAanvraag = "";
 var laatsteOvv = "";
 var laatsteRef = "";
+var laatsteMollieUrl = "";
 
 /* ------------------------------------------------------------
    Betaalgegevens duplicaat (EPC/SEPA QR en handmatige overboeking)
@@ -88,6 +89,20 @@ function toonMollieStatus(bericht) {
   el.hidden = false;
 }
 
+/* Handmatig betalen (QR/overschrijven) zichtbaar maken of verbergen. */
+function zetHandmatigBlok(zichtbaar) {
+  var blok = document.getElementById("handmatigBlok");
+  var knop = document.getElementById("handmatigKnop");
+  if (!blok) { return; }
+  blok.hidden = !zichtbaar;
+  blok.style.display = zichtbaar ? "block" : "none";
+  if (knop) {
+    knop.textContent = zichtbaar
+      ? "Verberg deze optie"
+      : "Toon QR-code en betaalgegevens";
+  }
+}
+
 /* Haalt de iDEAL-betaallink op en toont de grote betaalknop. */
 function vraagBetaallinkOp(nieuw) {
   var blok = document.getElementById("mollieBlok");
@@ -101,15 +116,21 @@ function vraagBetaallinkOp(nieuw) {
       if (!url) {
         blok.hidden = true;
         toonMollieStatus("");
+        /* geen iDEAL-link? dan moet de handmatige optie zichtbaar zijn */
+        zetHandmatigBlok(true);
         return;
       }
+      laatsteMollieUrl = url;
       knop.href = url;
+      var tekst = document.getElementById("mollieUrlTekst");
+      if (tekst) { tekst.textContent = url; }
       blok.hidden = false;
       toonMollieStatus(data.nieuw ? "Nieuwe betaallink aangemaakt." : "");
     })
     .catch(function () {
       blok.hidden = true;
       toonMollieStatus("");
+      zetHandmatigBlok(true);
     });
 }
 
@@ -713,6 +734,9 @@ function koppelKlaarzetten() {
       } else if (soort === "ovv") {
         waarde = laatsteOvv || el.textContent || "";
         label = "O.v.v. is gekopieerd.";
+      } else if (soort === "mollielink") {
+        waarde = laatsteMollieUrl || "";
+        label = "Betaallink is gekopieerd.";
       }
       if (!waarde) { return; }
       kopieerTekst(waarde).then(function (gelukt) {
@@ -746,13 +770,10 @@ function koppelKlaarzetten() {
 
   /* handmatig betalen / QR-code verbergen */
   var handmatigKnop = document.getElementById("handmatigKnop");
-  var handmatigBlok = document.getElementById("handmatigBlok");
-  if (handmatigKnop && handmatigBlok) {
+  if (handmatigKnop) {
     handmatigKnop.addEventListener("click", function () {
-      var zichtbaar = !handmatigBlok.hidden;
-      handmatigBlok.hidden = zichtbaar;
-      handmatigBlok.style.display = zichtbaar ? "none" : "block";
-      handmatigKnop.textContent = zichtbaar ? "Toon QR-code en betaalgegevens" : "Verberg deze optie";
+      var blok = document.getElementById("handmatigBlok");
+      zetHandmatigBlok(!!blok && blok.hidden);
     });
   }
 
