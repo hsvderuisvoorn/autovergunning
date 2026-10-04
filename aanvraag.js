@@ -318,17 +318,13 @@ function verstuurBetaalMelding() {
   }
   if (btn) { btn.disabled = true; }
   toonMeldStatus("Bevestiging wordt verstuurd...", "");
-  fetch(BACKEND_URL, {
-    method: "POST",
-    mode: "no-cors",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify({ type: "betaling-gemeld", betaalReferentie: laatsteRef })
-  }).then(function () {
-    toonMeldStatus("Bedankt! Uw betaling is doorgegeven; de club verwerkt het nu en stuurt de duplicaat zo snel mogelijk toe.", "ok");
-  }).catch(function () {
-    if (btn) { btn.disabled = false; }
-    toonMeldStatus("Geen verbinding. Probeer het zo meteen nog eens of mail secretariaat@hsvderuisvoorn.nl met uw betaalreferentie " + laatsteRef + ".", "fout");
-  });
+  postNaarBackend({ type: "betaling-gemeld", betaalReferentie: laatsteRef })
+    .then(function () {
+      toonMeldStatus("Bedankt! Uw betaling is doorgegeven; de club verwerkt het nu en stuurt de duplicaat zo snel mogelijk toe.", "ok");
+    }).catch(function () {
+      if (btn) { btn.disabled = false; }
+      toonMeldStatus("Geen verbinding. Probeer het zo meteen nog eens of mail secretariaat@hsvderuisvoorn.nl met uw betaalreferentie " + laatsteRef + ".", "fout");
+    });
 }
 
 /* ------------------------------------------------------------
@@ -437,19 +433,61 @@ function toonGeluktPagina() {
   window.scrollTo(0, 0);
 }
 
+/* Belofte afbreken als het te lang duurt. */
+function raceMetTimeout(belofte, ms) {
+  return new Promise(function (resolve, reject) {
+    var klaar = false;
+    var timer = setTimeout(function () {
+      if (klaar) { return; }
+      klaar = true;
+      reject(new Error("timeout"));
+    }, ms);
+    belofte.then(function (waarde) {
+      if (klaar) { return; }
+      klaar = true;
+      clearTimeout(timer);
+      resolve(waarde);
+    }, function (fout) {
+      if (klaar) { return; }
+      klaar = true;
+      clearTimeout(timer);
+      reject(fout);
+    });
+  });
+}
+
 /* ------------------------------------------------------------
    Verzoek naar de backend sturen (één aanvraag)
+   ------------------------------------------------------------
+   De webapp stuurt Access-Control-Allow-Origin: *, dus de statuscode is
+   leesbaar. Met 'no-cors' is elk antwoord onleesbaar en leek elk verzoek
+   geslaagd, ook wanneer de backend een fout teruggaf of helemaal niets
+   had opgeslagen; dan kreeg je ten onrechte de betaalpagina te zien.
    ------------------------------------------------------------ */
-function verstuurAanvraag(aanvraag) {
+function postNaarBackend(lichaam) {
   if (!BACKEND_URL) {
     return Promise.reject(new Error("BACKEND_URL_LEEG"));
   }
-  return fetch(BACKEND_URL, {
+  var verzoek = fetch(BACKEND_URL, {
     method: "POST",
-    mode: "no-cors",
+    mode: "cors",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify(aanvraag)
-  }).then(function () {
+    body: JSON.stringify(lichaam)
+  }).then(function (res) {
+    if (!res.ok) { throw new Error("HTTP " + res.status); }
+    return res.text();
+  }).then(function (tekst) {
+    var t = String(tekst || "").trim();
+    /* Apps Script toont bij een interne fout een HTML-foutpagina. */
+    if (t.slice(0, 1) === "<") { throw new Error("foutpagina"); }
+    if (t.indexOf("\"ok\":false") >= 0) { throw new Error("backend-fout"); }
+    return t;
+  });
+  return raceMetTimeout(verzoek, 20000);
+}
+
+function verstuurAanvraag(aanvraag) {
+  return postNaarBackend(aanvraag).then(function () {
     return "verstuurd";
   });
 }

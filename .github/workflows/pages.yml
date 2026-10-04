@@ -24,6 +24,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Cache-busting versie in de HTML zetten
+        run: |
+          V=$(git log -1 --format=%h)
+          sed -i "s/style\.css?v=[^ >]*/style.css?v=$V/g" aanvraag.html
+          sed -i "s/aanvraag\.js?v=[^ >]*/aanvraag.js?v=$V/g" aanvraag.html
+          grep -n '?v=' aanvraag.html
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
