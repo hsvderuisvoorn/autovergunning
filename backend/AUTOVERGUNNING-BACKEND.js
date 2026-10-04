@@ -303,7 +303,8 @@ function maakMollieBetaling(ref, voornaam, achternaam) {
   var checkout = "";
   if (data) {
     var links = data._links || data.links || {};
-    checkout = String(links.checkout || "");
+    var adres = links.checkout || {};
+    checkout = String(adres.href || adres || "");
   }
   if (!data || !data.id || !checkout) {
     throw new Error("onverwacht antwoord van Mollie: " +
