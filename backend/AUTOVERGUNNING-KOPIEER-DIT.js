@@ -300,10 +300,18 @@ function maakMollieBetaling(ref, voornaam, achternaam) {
       String(res.getContentText()).substring(0, 200));
   }
   var data = JSON.parse(res.getContentText());
-  if (!data || !data.links || !data.links.checkout) { return null; }
+  var checkout = "";
+  if (data) {
+    var links = data._links || data.links || {};
+    checkout = String(links.checkout || "");
+  }
+  if (!data || !data.id || !checkout) {
+    throw new Error("onverwacht antwoord van Mollie: " +
+      String(res.getContentText()).substring(0, 200));
+  }
   return {
-    paymentId: String(data.id || ""),
-    url: String(data.links.checkout),
+    paymentId: String(data.id),
+    url: checkout,
     status: String(data.status || "open")
   };
 }
@@ -588,7 +596,7 @@ function doGet(e) {
     var ref = String(params["ref"] || "").trim();
     var nieuw = String(params["nieuw"] || "") === "1";
     var betaal = haalOfMaakBetaallink(ref, nieuw);
-if (betaal && betaal.url) {
+    if (betaal && betaal.url) {
       return jsonpAntwoord(params["callback"], {
         ok: true,
         url: betaal.url,
