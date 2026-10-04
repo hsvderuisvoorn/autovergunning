@@ -27,8 +27,8 @@ jobs:
       - name: Cache-busting versie in de HTML zetten
         run: |
           V=$(git log -1 --format=%h)
-          sed -i "s/style\.css?v=[^ >]*/style.css?v=$V/g" aanvraag.html
-          sed -i "s/aanvraag\.js?v=[^ >]*/aanvraag.js?v=$V/g" aanvraag.html
+          sed -i "s/style\.css?v=[0-9a-z]*/style.css?v=$V/g" aanvraag.html
+          sed -i "s/aanvraag\.js?v=[0-9a-z]*/aanvraag.js?v=$V/g" aanvraag.html
           grep -n '?v=' aanvraag.html
 
       - name: Upload artifact
