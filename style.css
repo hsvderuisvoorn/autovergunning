@@ -335,12 +335,14 @@ button#verstuurBtn:disabled {
   flex-wrap: wrap;
 }
 .betalen-knop {
-  display: inline-block;
+  display: block;
+  width: 100%;
+  text-align: center;
   background: #1b5e20;
   color: #fff;
   border: none;
   border-radius: 0.4rem;
-  padding: 0.8rem 1.5rem;
+  padding: 0.9rem 1.5rem;
   font-size: 1.15rem;
   font-weight: 700;
   text-decoration: none;

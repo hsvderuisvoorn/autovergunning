@@ -93,6 +93,7 @@ function toonMollieStatus(bericht) {
 function zetHandmatigBlok(zichtbaar) {
   var blok = document.getElementById("handmatigBlok");
   var knop = document.getElementById("handmatigKnop");
+  var meld = document.getElementById("betaalMeldBlok");
   if (!blok) { return; }
   blok.hidden = !zichtbaar;
   blok.style.display = zichtbaar ? "block" : "none";
@@ -100,6 +101,11 @@ function zetHandmatigBlok(zichtbaar) {
     knop.textContent = zichtbaar
       ? "Verberg deze optie"
       : "Toon QR-code en betaalgegevens";
+  }
+  /* 'ik heb overgemaakt' hoort alleen bij de handmatige route */
+  if (meld) {
+    meld.hidden = zichtbaar ? false : true;
+    meld.style.display = zichtbaar ? "block" : "none";
   }
 }
 
