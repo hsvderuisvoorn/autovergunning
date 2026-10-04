@@ -10,16 +10,24 @@
      deruisvoornhelden@gmail.com via AANVRAAG-NOTIFICATIE.js
      (net als de meldingen van vangsten en opgaven).
 
-   HOE INSTALLEREN? (eenmalig, in 4 stappen)
+   HOE INSTALLEREN? (eenmalig, in 5 stappen)
    1. Maak op de Drive een spreadsheet aan en hernoem die naar
       "Autovergunningen".
    2. Open die sheet > Extensies > Apps Script > vervang ALLE
       code door DIT bestand > Ctrl+S.
-   3. Implementeren > Nieuwe implementatie > Web-app >
+   3. Zet de API-sleutel van Mollie erbij:
+      Projectinstellingen > Script-eigenschappen > Toevoegen:
+        naam   MOLLIE_API_KEY
+        waarde test_... (of live_...)
+   4. Implementeren > Nieuwe implementatie > Web-app >
       Uitvoeren als: Ik  |  Toegang: Iedereen > Implementeren.
-   4. Kopieer de /exec-URL en zet die in aanvraag.js
+   5. Kopieer de /exec-URL en zet die in aanvraag.js
       (BACKEND_URL).
    GEEN TRIGGER NODIG HIER: dit project verstuurt geen mail.
+
+   BETALEN MET iDEAL (Mollie) is optioneel: zonder MOLLIE_API_KEY
+   werkt alleen de QR-code en het handmatig overmaken. Het tabblad
+   "Betalingen" wordt aangemaakt zodra er een betaallink nodig is.
    ------------------------------------------------------------ */
 
 /* ------------------------------------------------------------
@@ -39,6 +47,14 @@ function doPost(e) {
   /* een apart verzoeksoort: aanvrager meldt dat de betaling is gedaan */
   if (json.type === "betaling-gemeld") {
     return verwerkBetaalMelding(json);
+  }
+
+  /* Mollie webhook: POST van Mollie zelf (id=tr_...&status=paid) */
+  if (e && e.postData && e.postData.contents &&
+      String(e.postData.contents).indexOf("id=") >= 0) {
+    verwerkMollieWebhook(String(e.postData.contents));
+    return ContentService.createTextOutput("ok")
+      .setMimeType(ContentService.MimeType.TEXT);
   }
 
   var blad = koppelSpreadsheet().blad;
@@ -66,7 +82,16 @@ function doPost(e) {
 
   opmaakToepassen(blad);
 
-  return ContentService.createTextOutput(JSON.stringify({ ok: true }))
+  /* bij een duplicaat meteen een iDEAL-betaallink (Mollie) maken,
+     zodat de aanvrager na verzenden direct kan betalen */
+  var betaallink = "";
+  if (isDuplicaat(json)) {
+    var betaal = haalOfMaakBetaallink(json.betaalReferentie, false);
+    betaallink = betaal && betaal.url ? betaal.url : "";
+  }
+
+  return ContentService.createTextOutput(
+    JSON.stringify({ ok: true, betaallink: betaallink }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -82,8 +107,15 @@ function verwerkBetaalMelding(json) {
     return ContentService.createTextOutput(JSON.stringify({ ok: false, reden: "geen-referentie" }))
       .setMimeType(ContentService.MimeType.JSON);
   }
+  var gevonden = markeerBetalingGemeld(blad, ref);
+  return ContentService.createTextOutput(JSON.stringify({ ok: gevonden, gevonden: gevonden }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/* Zet 'ja' + tijdstip (kolommen Q en R) in de rij met deze
+   betaalreferentie (kolom P). Geeft terug of de rij gevonden is. */
+function markeerBetalingGemeld(blad, ref) {
   var laatste = blad.getLastRow();
-  var gevonden = 0;
   if (laatste >= 2) {
     var waarden = blad.getRange(2, 1, laatste - 1, 19).getValues();
     for (var i = 0; i < waarden.length; i++) {
@@ -92,18 +124,243 @@ function verwerkBetaalMelding(json) {
         blad.getRange(rij, 17).setValue("ja");
         blad.getRange(rij, 18).setValue(vandaagTekst());
         kleurSoortEnInvalide(blad, laatste);
-        gevonden = 1;
-        break;
+        return true;
       }
     }
   }
-  return ContentService.createTextOutput(JSON.stringify({ ok: gevonden === 1, gevonden: gevonden === 1 }))
-    .setMimeType(ContentService.MimeType.JSON);
+  return false;
 }
 
 /* ------------------------------------------------------------
-   Opmaak van de sheet (handmatig draaien): ► verfraaiAanvragenSheet
+   BETALEN MET iDEAL (Mollie)
+   ------------------------------------------------------------
+   De API-sleutel staat NIET in dit bestand, maar in de
+   script-eigenschap "MOLLIE_API_KEY"
+   (Projectinstellingen > Script-eigenschappen > Toevoegen).
+   Zo staat de sleutel niet in GitHub en niet in de browser.
+
+   Wat er gebeurt bij een duplicaat-aanvraag:
+   1. de backend maakt een Mollie-order aan (€5) en schrijft de
+      checkout-link in het tabblad "Betalingen";
+   2. de aanvrager krijgt op de bedanktpagina een grote
+      "Betaal €5 met iDEAL"-knop;
+   3. Mollie stuurt na het betalen de status naar deze webapp
+      (webhook) en zet 'Betaling gemeld' in het tabblad "Aanvragen".
    ------------------------------------------------------------ */
+var MOLLIE_ORDERS_URL = "https://api.mollie.com/v2/orders";
+var BETALINGEN_TAB = "Betalingen";
+var DUPLICAAT_BEDRAG_MOLLIE = "5.00";
+
+function mollieApiSleutel() {
+  try {
+    return String(PropertiesService.getScriptProperties()
+      .getProperty("MOLLIE_API_KEY") || "").trim();
+  } catch (fout) {
+    return "";
+  }
+}
+
+function isDuplicaat(json) {
+  return String((json && json.soortAanvraag) || "").trim().toLowerCase() === "duplicaat";
+}
+
+function koppelBetalingenTabblad() {
+  var bestand = koppelSpreadsheet().bestand;
+  var blad = bestand.getSheetByName(BETALINGEN_TAB);
+  if (!blad) {
+    blad = bestand.insertSheet(BETALINGEN_TAB);
+    blad.getRange(1, 1, 1, 6).setValues([[
+      "Betaalreferentie", "Mollie payment-id", "Betaallink",
+      "Status", "Aangemaakt", "Betaald op"
+    ]]).setFontWeight("bold")
+       .setBackground("#1b5e20")
+       .setFontColor("#ffffff");
+    blad.setFrozenRows(1);
+  }
+  return blad;
+}
+
+/* Laatste betaalregel met deze referentie (of null). */
+function zoekBetaling(ref) {
+  var gezocht = String(ref || "").trim();
+  if (!gezocht) { return null; }
+  var blad = koppelBetalingenTabblad();
+  var laatste = blad.getLastRow();
+  if (laatste < 2) { return null; }
+  var waarden = blad.getRange(2, 1, laatste - 1, 6).getValues();
+  for (var i = waarden.length - 1; i >= 0; i--) {
+    if (String(waarden[i][0] || "").trim() === gezocht) {
+      return {
+        rij: i + 2,
+        paymentId: String(waarden[i][1] || ""),
+        url: String(waarden[i][2] || ""),
+        status: String(waarden[i][3] || "")
+      };
+    }
+  }
+  return null;
+}
+
+/* Status waarmee de link nog gebruikt kan worden. */
+function statusNogBruikbaar(status) {
+  var s = String(status || "").trim().toLowerCase();
+  return s === "" || s === "open" || s === "pending" ||
+         s === "paid" || s === "authorized";
+}
+
+function schrijfBetaling(ref, paymentId, url, status) {
+  var blad = koppelBetalingenTabblad();
+  var bestaand = zoekBetaling(ref);
+  var rij = bestaand ? bestaand.rij : blad.getLastRow() + 1;
+  blad.getRange(rij, 1, 1, 6).setValues([[
+    String(ref || ""),
+    String(paymentId || ""),
+    String(url || ""),
+    String(status || ""),
+    vandaagTekst(),
+    status === "paid" ? vandaagTekst() : ""
+  ]]);
+  return rij;
+}
+
+function mollieTerugUrl() {
+  var vast = "";
+  try {
+    vast = String(PropertiesService.getScriptProperties()
+      .getProperty("MOLLIE_REDIRECT_URL") || "").trim();
+  } catch (fout) {
+    vast = "";
+  }
+  if (vast) { return vast; }
+  return "https://hsvderuisvoorn.github.io/autovergunning/aanvraag.html?betaald=1";
+}
+
+function mollieWebhookUrl() {
+  try {
+    var url = String(ScriptApp.getService().getUrl() || "");
+    return url ? url + "?act=webhook" : "";
+  } catch (fout) {
+    return "";
+  }
+}
+
+/* Naam van de aanvrager opzoeken bij een betaalreferentie. */
+function zoekAanvraag(ref) {
+  var gezocht = String(ref || "").trim();
+  if (!gezocht) { return null; }
+  var blad = koppelSpreadsheet().blad;
+  var laatste = blad.getLastRow();
+  if (laatste < 2) { return null; }
+  var waarden = blad.getRange(2, 1, laatste - 1, 16).getValues();
+  for (var i = waarden.length - 1; i >= 0; i--) {
+    if (String(waarden[i][15] || "").trim() === gezocht) {
+      return {
+        voornaam: String(waarden[i][3] || ""),
+        achternaam: String(waarden[i][4] || "")
+      };
+    }
+  }
+  return null;
+}
+
+/* Maakt een Mollie-order aan. Geeft null terug bij fouten of als er
+   geen API-sleutel is ingesteld (de QR-/handmatige betaling blijft
+   dan gewoon werken). */
+function maakMollieBetaling(ref, voornaam, achternaam) {
+  var sleutel = mollieApiSleutel();
+  if (!sleutel) { return null; }
+  var body = {
+    amount: { value: DUPLICAAT_BEDRAG_MOLLIE, currency: "EUR" },
+    description: ("Duplicaat Autovergunning " + String(ref || "")).slice(0, 140),
+    redirectUrl: mollieTerugUrl(),
+    locale: "nl_NL",
+    metadata: {
+      betaalReferentie: String(ref || ""),
+      voornaam: String(voornaam || ""),
+      achternaam: String(achternaam || "")
+    }
+  };
+  var hook = mollieWebhookUrl();
+  if (hook) { body.webhookUrl = hook; }
+  var res = UrlFetchApp.fetch(MOLLIE_ORDERS_URL, {
+    method: "post",
+    contentType: "application/json",
+    headers: { Authorization: "Bearer " + sleutel },
+    payload: JSON.stringify(body),
+    muteHttpExceptions: true
+  });
+  if (res.getResponseCode() >= 400) { return null; }
+  var data = JSON.parse(res.getContentText());
+  if (!data || !data.links || !data.links.checkout) { return null; }
+  return {
+    paymentId: String(data.id || ""),
+    url: String(data.links.checkout),
+    status: String(data.status || "open")
+  };
+}
+
+/* Bestaande (niet-verlopen) link hergebruiken, anders een nieuwe
+   maken. Met nieuw=true wordt altijd een verse link gemaakt. */
+function haalOfMaakBetaallink(ref, nieuw) {
+  try {
+    var gezocht = String(ref || "").trim();
+    if (!gezocht) { return null; }
+    var bestaand = zoekBetaling(gezocht);
+    if (!nieuw && bestaand && bestaand.url && statusNogBruikbaar(bestaand.status)) {
+      return bestaand;
+    }
+    var aanvraag = zoekAanvraag(gezocht);
+    var nieuwBetaling = maakMollieBetaling(gezocht,
+      aanvraag ? aanvraag.voornaam : "",
+      aanvraag ? aanvraag.achternaam : "");
+    if (!nieuwBetaling) { return null; }
+    schrijfBetaling(gezocht, nieuwBetaling.paymentId, nieuwBetaling.url,
+      nieuwBetaling.status);
+    return {
+      rij: 0,
+      paymentId: nieuwBetaling.paymentId,
+      url: nieuwBetaling.url,
+      status: nieuwBetaling.status
+    };
+  } catch (fout) {
+    return null;
+  }
+}
+
+/* Webhook van Mollie: payment-id + status. Zet bij 'paid' ook
+   'Betaling gemeld' in het tabblad "Aanvragen". */
+function verwerkMollieWebhook(inhoud) {
+  var velden = Utilities.parseQueryString(String(inhoud || ""));
+  var id = String(velden["id"] || "").trim();
+  var status = String(velden["status"] || "").trim().toLowerCase();
+  if (!id) { return false; }
+  var blad = koppelBetalingenTabblad();
+  var laatste = blad.getLastRow();
+  if (laatste < 2) { return false; }
+  var ids = blad.getRange(2, 2, laatste - 1, 3).getValues();
+  for (var i = 0; i < ids.length; i++) {
+    if (String(ids[i][0] || "").trim() === id) {
+      var rij = i + 2;
+      blad.getRange(rij, 4).setValue(status || "onbekend");
+      if (status === "paid") {
+        blad.getRange(rij, 6).setValue(vandaagTekst());
+        markeerBetalingGemeld(koppelSpreadsheet().blad,
+          String(ids[i][1] || "").trim());
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
+/* JSONP-antwoord: de aanvraagpagina leest het antwoord via een
+   script-tag, omdat de Apps Script-webapp geen CORS-headers zet. */
+function jsonpAntwoord(callback, obj) {
+  var naam = String(callback || "cb").replace(/[^A-Za-z0-9_.]/g, "");
+  if (!naam || naam.charAt(0) === "." || /^[0-9]/.test(naam)) { naam = "cb"; }
+  return ContentService.createTextOutput(naam + "(" + JSON.stringify(obj) + ");")
+    .setMimeType(ContentService.MimeType.JAVASCRIPT);
+}
 function verfraaiAanvragenSheet() {
   var blad = koppelSpreadsheet().blad;
   opmaakToepassen(blad);
@@ -269,7 +526,7 @@ function koppelSpreadsheet() {
     opmaakToepassen(blad);
   }
 
-  return { blad: blad, nieuwGemaakt: nieuwGemaakt };
+  return { bestand: bestand, blad: blad, nieuwGemaakt: nieuwGemaakt };
 }
 
 /* ------------------------------------------------------------
@@ -313,7 +570,28 @@ function verplaatsNaarMap(bestand, mapNaam) {
    Bevestigingspagina als iemand de /exec-URL in een browser
    opent (geen formulier, alleen "backend actief").
    ------------------------------------------------------------ */
-function doGet() {
+function doGet(e) {
+  var params = (e && e.parameter) ? e.parameter : {};
+  var act = String(params["act"] || "").trim().toLowerCase();
+
+  /* aanvrager vraagt de actuele iDEAL-betaallink op */
+  if (act === "betaallink") {
+    var ref = String(params["ref"] || "").trim();
+    var nieuw = String(params["nieuw"] || "") === "1";
+    var betaal = haalOfMaakBetaallink(ref, nieuw);
+    return jsonpAntwoord(params["callback"], (betaal && betaal.url)
+      ? { ok: true, url: betaal.url, status: betaal.status, nieuw: nieuw }
+      : { ok: false });
+  }
+
+  /* aanvrager controleert (na terugkomst van Mollie) de status */
+  if (act === "status") {
+    var gezocht = zoekBetaling(String(params["ref"] || "").trim());
+    return jsonpAntwoord(params["callback"], gezocht
+      ? { ok: true, status: gezocht.status }
+      : { ok: false });
+  }
+
   return ContentService.createTextOutput("Backend aanvraag Autovergunning: actief.")
     .setMimeType(ContentService.MimeType.TEXT);
 }

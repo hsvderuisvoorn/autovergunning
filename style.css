@@ -334,6 +334,47 @@ button#verstuurBtn:disabled {
   align-items: flex-start;
   flex-wrap: wrap;
 }
+.betalen-knop {
+  display: inline-block;
+  background: #1b5e20;
+  color: #fff;
+  border: none;
+  border-radius: 0.4rem;
+  padding: 0.8rem 1.5rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+.betalen-knop:hover { filter: brightness(1.12); }
+.link-knop {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: var(--hoofd-groen);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.link-knop:hover { filter: brightness(1.2); }
+.terug-blok {
+  background: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  border-left: 4px solid #1b5e20;
+  border-radius: 0.6rem;
+  padding: 1.1rem;
+  margin: 0 0 1.4rem;
+}
+.terug-blok p { margin: 0 0 0.6rem; }
+#terugStatusKnop {
+  background: #1b5e20;
+  color: #fff;
+  border: none;
+  border-radius: 0.4rem;
+  padding: 0.55rem 1rem;
+  font-size: 1rem;
+  cursor: pointer;
+}
 .qr-link { display: inline-block; line-height: 0; }
 .qr-link[hidden] { display: none; }
 .qr-link:hover .qr-img { border-color: #1b5e20; }

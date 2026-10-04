@@ -33,6 +33,117 @@ var BANK_IBAN_ZICHTBAAR = "NL09 RABO 0141 9769 50";
 var BANK_NAAM = "Hengelsportver. De Ruisvoorn";
 var DUPLICAAT_BEDRAG = "5.00";
 var QR_SERVICE = "https://api.qrserver.com/v1/create-qr-code/";
+var REF_SLEUTEL = "hsvDuplicaatRef";
+
+/* Vraagt de backend (JSONP, want de Apps Script-webapp stuurt geen
+   CORS-headers) om de actuele betaallink of betaalstatus op te halen. */
+function backendJsonp(act, params) {
+  return new Promise(function (resolve, reject) {
+    if (!BACKEND_URL) { reject(new Error("geen backend")); return; }
+    var cb = "hsvCb" + Date.now() + Math.floor(Math.random() * 1000);
+    var script = document.createElement("script");
+    var timer = setTimeout(function () {
+      try { delete window[cb]; } catch (e) { window[cb] = undefined; }
+      if (script.parentNode) { script.parentNode.removeChild(script); }
+      reject(new Error("timeout"));
+    }, 12000);
+    window[cb] = function (data) {
+      clearTimeout(timer);
+      try { delete window[cb]; } catch (e) { window[cb] = undefined; }
+      if (script.parentNode) { script.parentNode.removeChild(script); }
+      resolve(data || {});
+    };
+    script.onerror = function () {
+      clearTimeout(timer);
+      try { delete window[cb]; } catch (e) { window[cb] = undefined; }
+      if (script.parentNode) { script.parentNode.removeChild(script); }
+      reject(new Error("netwerk"));
+    };
+    script.src = BACKEND_URL + "?act=" + act + "&callback=" + cb +
+      "&" + (params || "");
+    document.head.appendChild(script);
+  });
+}
+
+function bewaarRef(ref) {
+  laatsteRef = ref || laatsteRef;
+  try {
+    if (laatsteRef) { sessionStorage.setItem(REF_SLEUTEL, laatsteRef); }
+  } catch (e) { /* opslag niet beschikbaar */ }
+}
+
+function haalRefOp() {
+  try { return sessionStorage.getItem(REF_SLEUTEL) || ""; } catch (e) { return ""; }
+}
+
+function toonMollieStatus(bericht) {
+  var el = document.getElementById("mollieStatus");
+  if (!el) { return; }
+  if (!bericht) {
+    el.hidden = true;
+    el.textContent = "";
+    return;
+  }
+  el.textContent = bericht;
+  el.hidden = false;
+}
+
+/* Haalt de iDEAL-betaallink op en toont de grote betaalknop. */
+function vraagBetaallinkOp(nieuw) {
+  var blok = document.getElementById("mollieBlok");
+  var knop = document.getElementById("mollieKnop");
+  var ref = laatsteRef || haalRefOp();
+  if (!blok || !knop || !ref || !BACKEND_URL) { return; }
+  toonMollieStatus(nieuw ? "Een nieuwe betaallink wordt aangemaakt..." : "Betaallink ophalen...");
+  backendJsonp("betaallink", "ref=" + encodeURIComponent(ref) + "&nieuw=" + (nieuw ? "1" : "0"))
+    .then(function (data) {
+      var url = data && data.url ? data.url : "";
+      if (!url) {
+        blok.hidden = true;
+        toonMollieStatus("");
+        return;
+      }
+      knop.href = url;
+      blok.hidden = false;
+      toonMollieStatus(data.nieuw ? "Nieuwe betaallink aangemaakt." : "");
+    })
+    .catch(function () {
+      blok.hidden = true;
+      toonMollieStatus("");
+    });
+}
+
+/* Controleert na terugkomst van Mollie of de betaling binnen is. */
+function controleerBetaalstatus() {
+  var sectie = document.getElementById("terugVanBetaling");
+  var tekst = document.getElementById("terugTekst");
+  var ref = haalRefOp();
+  if (!sectie || !ref || !BACKEND_URL) { return; }
+  var params = new URLSearchParams(window.location.search);
+  if (params.get("betaald") !== "1") { return; }
+  sectie.hidden = false;
+  sectie.style.display = "block";
+  var form = document.getElementById("aanvraagForm");
+  if (form) { form.hidden = true; form.style.display = "none"; }
+  backendJsonp("status", "ref=" + encodeURIComponent(ref))
+    .then(function (data) {
+      var status = data && data.status ? String(data.status) : "";
+      if (status === "paid" || status === "authorized") {
+        if (tekst) {
+          tekst.innerHTML = "Uw betaling van &euro;5 is ontvangen. Uw aanvraag voor een duplicaat is daarmee afgerond; u ontvangt de duplicaat zo snel mogelijk per post.";
+        }
+        return;
+      }
+      if (tekst) {
+        tekst.innerHTML = "Wij hebben uw betaling nog niet binnen. Het kan zijn dat uw bank het nog verwerkt. Kies <em>Controleer nu</em> om het opnieuw te proberen. Is de betaling niet gelukt? Gebruik dan de QR-code of de betaalgegevens, of mail ons uw betaalreferentie.";
+      }
+    })
+    .catch(function () {
+      if (tekst) {
+        tekst.innerHTML = "Wij konden uw betalingstatus niet ophalen. Controleer dit later opnieuw, of mail ons uw betaalreferentie.";
+      }
+    });
+}
 
 function maakReferentie() {
   var t = new Date();
@@ -263,7 +374,10 @@ function toonGeluktPagina() {
   var duplicaat = document.getElementById("geluktDuplicaat");
   if (nieuw)     { nieuw.hidden = isDuplicaat; }
   if (duplicaat) { duplicaat.hidden = !isDuplicaat; }
-  if (isDuplicaat) { vulBetaalgegevensIn(); }
+  if (isDuplicaat) {
+    vulBetaalgegevensIn();
+    vraagBetaallinkOp(false);
+  }
   if (sectie && sectie.scrollIntoView) { sectie.scrollIntoView(); }
   window.scrollTo(0, 0);
 }
@@ -295,6 +409,7 @@ function verstuurWachtrij() {
     return verstuurAanvraag(item).then(function () {
       laatsteSoortAanvraag = item.soortAanvraag || "";
       laatsteRef = item.betaalReferentie || "";
+      bewaarRef(laatsteRef);
       laatsteOvv = maakOvv(item);
       var overig = haalWachtrij().filter(function (x) {
         return x.wachtrijId !== item.wachtrijId;
@@ -453,6 +568,7 @@ function verstuurFormulier(e) {
   if (aanvraag.soortAanvraag === "duplicaat") {
     aanvraag.betaalReferentie = maakReferentie();
     laatsteRef = aanvraag.betaalReferentie;
+    bewaarRef(laatsteRef);
   } else {
     laatsteRef = "";
   }
@@ -619,6 +735,33 @@ function koppelKlaarzetten() {
   if (betaalGemeldBtn) {
     betaalGemeldBtn.addEventListener("click", verstuurBetaalMelding);
   }
+
+  /* nieuwe iDEAL-betaallink opvragen */
+  var mollieVernieuwenBtn = document.getElementById("mollieVernieuwenBtn");
+  if (mollieVernieuwenBtn) {
+    mollieVernieuwenBtn.addEventListener("click", function () {
+      vraagBetaallinkOp(true);
+    });
+  }
+
+  /* handmatig betalen / QR-code verbergen */
+  var handmatigKnop = document.getElementById("handmatigKnop");
+  var handmatigBlok = document.getElementById("handmatigBlok");
+  if (handmatigKnop && handmatigBlok) {
+    handmatigKnop.addEventListener("click", function () {
+      var zichtbaar = !handmatigBlok.hidden;
+      handmatigBlok.hidden = zichtbaar;
+      handmatigBlok.style.display = zichtbaar ? "none" : "block";
+      handmatigKnop.textContent = zichtbaar ? "Toon QR-code en betaalgegevens" : "Verberg deze optie";
+    });
+  }
+
+  /* teruggekomen van Mollie: betaalstatus controleren */
+  var terugStatusKnop = document.getElementById("terugStatusKnop");
+  if (terugStatusKnop) {
+    terugStatusKnop.addEventListener("click", controleerBetaalstatus);
+  }
+  controleerBetaalstatus();
 
   /* online -> wachtrij leegpompen */
   if ("ononline" in window) {

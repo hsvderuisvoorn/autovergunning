@@ -24,6 +24,12 @@
     <p><strong>Geen verbinding?</strong> Geen probleem, uw aanvraag wordt op uw telefoon bewaard en automatisch verzonden zodra u weer online bent.</p>
   </section>
 
+  <section id="terugVanBetaling" class="terug-blok" hidden>
+    <p class="betaal-titel">Terug van het betalen</p>
+    <p id="terugTekst">Wij controleren uw betaling. Dit kan enkele seconden duren.</p>
+    <button type="button" id="terugStatusKnop">Controleer nu</button>
+  </section>
+
   <form id="aanvraagForm" novalidate>
 
     <fieldset>
@@ -187,8 +193,17 @@
       <div id="geluktDuplicaat" hidden>
         <p>Wij hebben uw aanvraag voor een duplicaat Autovergunning ontvangen. Wij sturen de duplicaat <strong>zo snel mogelijk toe</strong>, nadat u de kosten van <strong>&euro;5</strong> heeft voldaan.</p>
 
-        <div class="betaal-blok">
+        <div id="mollieBlok" class="betaal-blok" hidden>
+          <p class="betaal-titel">Betalen met uw eigen bank (iDEAL)</p>
+          <p>Tik op de knop hieronder, kies uw bank en log in. Daarna wordt u teruggestuurd naar deze pagina en weten wij direct dat u betaald heeft.</p>
+          <a id="mollieKnop" class="betalen-knop" href="#" target="_blank" rel="noopener">Betaal &euro;5 met iDEAL</a>
+          <p id="mollieStatus" class="hulp-tekst" hidden></p>
+          <p class="hulp-tekst"><button type="button" id="mollieVernieuwenBtn" class="link-knop">Link verlopen of niet gelukt? Vraag een nieuwe betaallink</button></p>
+        </div>
+
+        <div id="handmatigBlok" class="betaal-blok">
           <p class="betaal-titel">Betalen van de kosten (&euro;5)</p>
+          <p class="hulp-tekst"><button type="button" id="handmatigKnop" class="link-knop">Verberg deze optie</button></p>
           <div class="betaal-row">
             <a id="qrLinkDuplicaat" class="qr-link" href="" target="_blank" rel="noopener" aria-label="QR-code vergroten">
               <img id="qrDuplicaat" class="qr-img" src="" alt="QR-code betaling &euro;5 duplicaat Autovergunning" onerror="this.parentNode.hidden=true">
