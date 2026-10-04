@@ -71,10 +71,29 @@ function bewaarRef(ref) {
   try {
     if (laatsteRef) { sessionStorage.setItem(REF_SLEUTEL, laatsteRef); }
   } catch (e) { /* opslag niet beschikbaar */ }
+  /* Ook in een cookie: die is per apparaat en dus beschikbaar als de
+     aanvrager via iDEAL in een nieuw tabblad terechtkomt. */
+  try {
+    if (laatsteRef) {
+      document.cookie = REF_SLEUTEL + "=" + encodeURIComponent(laatsteRef) +
+        "; path=/; max-age=1800; SameSite=Lax";
+    }
+  } catch (e) { /* cookies niet beschikbaar */ }
 }
 
 function haalRefOp() {
-  try { return sessionStorage.getItem(REF_SLEUTEL) || ""; } catch (e) { return ""; }
+  var ref = "";
+  try { ref = sessionStorage.getItem(REF_SLEUTEL) || ""; } catch (e) { ref = ""; }
+  if (!ref) {
+    var naam = REF_SLEUTEL + "=";
+    var delen = String(document.cookie || "").split(";");
+    for (var i = 0; i < delen.length; i++) {
+      var stuk = delen[i].replace(/^\s+/, "");
+      if (stuk.indexOf(naam) === 0) { ref = decodeURIComponent(stuk.substring(naam.length)); }
+    }
+    if (ref) { bewaarRef(ref); }
+  }
+  return ref;
 }
 
 function toonMollieStatus(bericht) {
