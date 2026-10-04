@@ -190,15 +190,17 @@
         <div class="betaal-blok">
           <p class="betaal-titel">Betalen van de kosten (&euro;5)</p>
           <div class="betaal-row">
-            <img id="qrDuplicaat" class="qr-img" src="" alt="QR-code betaling &euro;5 duplicaat Autovergunning" onerror="this.hidden=true">
+            <a id="qrLinkDuplicaat" class="qr-link" href="" target="_blank" rel="noopener" aria-label="QR-code vergroten">
+              <img id="qrDuplicaat" class="qr-img" src="" alt="QR-code betaling &euro;5 duplicaat Autovergunning" onerror="this.parentNode.hidden=true">
+            </a>
             <div class="betaal-tekst">
               <p><strong>Zo werkt het:</strong> U kunt de QR-code hiernaast scannen met uw mobiele bankapp. Als uw bankapp de QR-code niet kan scannen, klikt u dan op de QR-code om hem te openen of kopieert u de betaalgegevens hieronder. Het rekeningnummer, het bedrag van <strong>&euro;5</strong> en de o.v.v. <em id="qrOvv">&hellip;</em> worden dan automatisch ingevuld (afhankelijk van uw bankapp) &mdash; u hoeft alleen nog te bevestigen.</p>
-              <p>Handmatig overmaken kan ook:</p>
+              <p>Handmatig overmaken kan ook (tik op een gegeven om het te kopi&euml;ren):</p>
               <ul class="betaal-gegevens">
-                <li>Rekeningnummer: <strong>NL09 RABO 0141 9769 50</strong></li>
+                <li>Rekeningnummer: <strong class="kopieerbaar" data-kopieer="iban" role="button" tabindex="0" title="Tik om het rekeningnummer te kopi&euml;ren">NL09 RABO 0141 9769 50</strong></li>
                 <li>t.n.v.: <strong>Hengelsportver. De Ruisvoorn</strong></li>
-                <li>Bedrag: <strong>&euro;5,00</strong></li>
-                <li>o.v.v.: <strong id="qrOvvHandmatig">&hellip;</strong></li>
+                <li>Bedrag: <strong class="kopieerbaar" data-kopieer="bedrag" role="button" tabindex="0" title="Tik om het bedrag te kopi&euml;ren">&euro;5,00</strong></li>
+                <li>o.v.v.: <strong id="qrOvvHandmatig" class="kopieerbaar" data-kopieer="ovv" role="button" tabindex="0" title="Tik om de o.v.v. te kopi&euml;ren">&hellip;</strong></li>
               </ul>
               <button type="button" id="kopieerBetaalBtn">Kopieer betaalgegevens</button>
               <p id="kopieerStatus" class="hulp-tekst" hidden>Betaalgegevens zijn gekopieerd.</p>

@@ -334,14 +334,24 @@ button#verstuurBtn:disabled {
   align-items: flex-start;
   flex-wrap: wrap;
 }
+.qr-link { display: inline-block; line-height: 0; }
+.qr-link[hidden] { display: none; }
+.qr-link:hover .qr-img { border-color: #1b5e20; }
 .qr-img {
   width: 150px;
+  max-width: 100%;
   height: auto;
   border: 1px solid #c5c5c5;
   border-radius: 0.4rem;
   padding: 4px;
   background: #fff;
 }
+.kopieerbaar {
+  cursor: pointer;
+  border-bottom: 1px dashed var(--hoofd-groen);
+}
+.kopieerbaar:active { background: #e8f5e9; }
+.kopieerbaar:focus { outline: 2px solid var(--hoofd-groen); outline-offset: 2px; }
 .betaal-tekst { flex: 1; min-width: 220px; font-size: 1rem; }
 .betaal-tekst p { margin: 0 0 0.6rem; }
 .betaal-gegevens { margin: 0 0 0.8rem; padding-left: 1.1rem; list-style: disc; }

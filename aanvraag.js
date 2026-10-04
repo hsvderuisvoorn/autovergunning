@@ -68,11 +68,17 @@ function maakEpcQr(ovv) {
 
 function vulBetaalgegevensIn() {
   var ovv = laatsteOvv || "Duplicaat Autovergunning";
+  var qrUrl = QR_SERVICE + "?size=300x300&data=" +
+    encodeURIComponent(maakEpcQr(ovv)) + "&margin=0";
   var img = document.getElementById("qrDuplicaat");
   if (img) {
-    img.src = QR_SERVICE + "?size=300x300&data=" +
-      encodeURIComponent(maakEpcQr(ovv)) + "&margin=0";
+    img.src = qrUrl;
     img.hidden = false;
+  }
+  var link = document.getElementById("qrLinkDuplicaat");
+  if (link) {
+    link.href = qrUrl;
+    link.hidden = false;
   }
   var o1 = document.getElementById("qrOvv");
   var o2 = document.getElementById("qrOvvHandmatig");
@@ -80,6 +86,52 @@ function vulBetaalgegevensIn() {
   if (o2) { o2.textContent = ovv; }
   var re = document.getElementById("qrRef");
   if (re) { re.textContent = laatsteRef || "&mdash;"; }
+}
+
+function kopieerTekst(tekst) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    return navigator.clipboard.writeText(tekst).then(function () {
+      return true;
+    }).catch(function () {
+      return kopieerTekstMetFallback(tekst);
+    });
+  }
+  return kopieerTekstMetFallback(tekst);
+}
+
+function kopieerTekstMetFallback(tekst) {
+  var ta = document.createElement("textarea");
+  ta.value = tekst;
+  ta.setAttribute("readonly", "readonly");
+  ta.style.position = "fixed";
+  ta.style.top = "0";
+  ta.style.left = "0";
+  ta.style.width = "1px";
+  ta.style.height = "1px";
+  ta.style.padding = "0";
+  ta.style.border = "none";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  ta.setSelectionRange(0, tekst.length);
+  var gelukt = false;
+  try { gelukt = document.execCommand("copy"); } catch (e) { gelukt = false; }
+  document.body.removeChild(ta);
+  return Promise.resolve(gelukt);
+}
+
+function toonKopieerStatus(bericht) {
+  var st = document.getElementById("kopieerStatus");
+  if (!st) { return; }
+  st.textContent = bericht;
+  st.hidden = false;
+  st.style.display = "block";
+  if (st._timer) { clearTimeout(st._timer); }
+  st._timer = setTimeout(function () {
+    st.hidden = true;
+    st.textContent = "Betaalgegevens zijn gekopieerd.";
+  }, 3000);
 }
 
 /* Melding 'betaling gedaan' (alleen bij duplicaat via de QR) naar
@@ -521,29 +573,46 @@ function koppelKlaarzetten() {
         "t.n.v.: " + BANK_NAAM + "\n" +
         "Bedrag: EUR " + DUPLICAAT_BEDRAG + "\n" +
         "o.v.v.: " + ovv;
-      function klaar() {
-        var st = document.getElementById("kopieerStatus");
-        if (st) {
-          st.hidden = false;
-          st.style.display = "block";
-          setTimeout(function () { if (st) { st.hidden = true; } }, 3000);
-        }
-      }
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(tekst).then(klaar).catch(function () { klaar(); });
-      } else {
-        var ta = document.createElement("textarea");
-        ta.value = tekst;
-        ta.style.position = "fixed";
-        ta.style.opacity = "0";
-        document.body.appendChild(ta);
-        ta.select();
-        try { document.execCommand("copy"); } catch (e) { /* niets */ }
-        document.body.removeChild(ta);
-        klaar();
-      }
+      kopieerTekst(tekst).then(function (gelukt) {
+        toonKopieerStatus(gelukt
+          ? "Betaalgegevens zijn gekopieerd."
+          : "Kopiëren lukte niet. Selecteer de gegevens hierboven zelf.");
+      });
     });
   }
+
+  /* afzonderlijke betaalgegevens kopiëren (tikken op mobiel) */
+  var kopieerbaar = document.querySelectorAll("[data-kopieer]");
+  Array.prototype.forEach.call(kopieerbaar, function (el) {
+    function kopieerWaarde() {
+      var soort = el.getAttribute("data-kopieer");
+      var waarde = "";
+      var label = "";
+      if (soort === "iban") {
+        waarde = BANK_IBAN;
+        label = "Rekeningnummer is gekopieerd.";
+      } else if (soort === "bedrag") {
+        waarde = DUPLICAAT_BEDRAG;
+        label = "Bedrag is gekopieerd.";
+      } else if (soort === "ovv") {
+        waarde = laatsteOvv || el.textContent || "";
+        label = "O.v.v. is gekopieerd.";
+      }
+      if (!waarde) { return; }
+      kopieerTekst(waarde).then(function (gelukt) {
+        toonKopieerStatus(gelukt
+          ? label
+          : "Kopiëren lukte niet. Selecteer het gegeven hierboven zelf.");
+      });
+    }
+    el.addEventListener("click", kopieerWaarde);
+    el.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
+        e.preventDefault();
+        kopieerWaarde();
+      }
+    });
+  });
 
   /* 'ik heb betaald' melding versturen (duplicaat via QR) */
   var betaalGemeldBtn = document.getElementById("betaalGemeldBtn");
