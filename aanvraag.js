@@ -178,10 +178,19 @@ function controleerBetaalstatus() {
         if (tekst) {
           tekst.innerHTML = "Uw betaling van &euro;5 is ontvangen. Uw aanvraag voor een duplicaat is daarmee afgerond; u ontvangt de duplicaat zo snel mogelijk per post.";
         }
+        var klaar = document.getElementById("terugStatusKnop");
+        if (klaar) { klaar.hidden = true; klaar.style.display = "none"; }
         return;
       }
       if (tekst) {
-        tekst.innerHTML = "Wij hebben uw betaling nog niet binnen. Het kan zijn dat uw bank het nog verwerkt. Kies <em>Controleer nu</em> om het opnieuw te proberen. Is de betaling niet gelukt? Gebruik dan de QR-code of de betaalgegevens, of mail ons uw betaalreferentie.";
+        tekst.innerHTML = "Wij hebben uw betaling nog niet binnen. Het kan zijn dat uw bank het nog verwerkt. Kies <em>Controleer nu</em> om het opnieuw te proberen. Is de betaling niet gelukt? Vraag dan <a href=\"#\" id=\"mollieOpnieuw\">een nieuwe betaallink</a> of mail ons uw betaalreferentie.";
+        var opnieuw = document.getElementById("mollieOpnieuw");
+        if (opnieuw) {
+          opnieuw.addEventListener("click", function (e) {
+            e.preventDefault();
+            vraagBetaallinkOp(true);
+          });
+        }
       }
     })
     .catch(function () {
