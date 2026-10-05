@@ -71,9 +71,9 @@ function doPost(e) {
      het voor de aanvrager alsof er geen verbinding was. Met de foutmelding
      in het antwoord ziet de pagina wat er werkelijk mis is. */
   try {
-    schrijfAanvraagRij(json);
+    var geschreven = schrijfAanvraagRij(json);
     return ContentService.createTextOutput(
-      JSON.stringify({ ok: true }))
+      JSON.stringify({ ok: true, alBinnen: geschreven.alBinnen === true }))
       .setMimeType(ContentService.MimeType.JSON);
   } catch (fout) {
     /* De rij is niet weggeschreven. Geef de reden terug zodat de
@@ -919,8 +919,14 @@ function doGet(e) {
       return jsonpAntwoord(params["callback"], { ok: false, fout: uit.fout });
     }
     try {
-      schrijfAanvraagRij(uit.aanvraag);
-      return jsonpAntwoord(params["callback"], { ok: true });
+      /* Het resultaat níet weggooien: schrijfAanvraagRij geeft
+         terug of de rij nieuw is weggeschreven of al bestond. Dat is
+         het enige bewijs dat de dubbelcheck werkt. */
+      var geschreven = schrijfAanvraagRij(uit.aanvraag);
+      return jsonpAntwoord(params["callback"], {
+        ok: true,
+        alBinnen: geschreven.alBinnen === true
+      });
     } catch (foutSchrijf) {
       var reden = foutMelding(foutSchrijf);
       Logger.log("aanvraag opslaan mislukt: " + reden);
