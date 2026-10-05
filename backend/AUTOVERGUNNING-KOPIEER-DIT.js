@@ -35,6 +35,7 @@
    spreadsheet (tabblad "Aanvragen").
    ------------------------------------------------------------ */
 function doPost(e) {
+  resetKoppelCache();
   var json = {};
   try {
     if (e && e.postData && e.postData.contents) {
@@ -58,7 +59,7 @@ function doPost(e) {
   }
 
   var blad = koppelSpreadsheet().blad;
-  blad.appendRow([
+  var rijWaarden = [
     naarDagMaandJaar(json.datumAanvraag),          /* A datum aanvraag (dd-mm-jjjj)  */
     json.soortAanvraag      || "",                 /* B soort aanvraag (nieuw/duplicaat) */
     json.voorletters        || "",                 /* C voorletters                  */
@@ -78,16 +79,25 @@ function doPost(e) {
     "",                                             /* Q betaling gemeld (via knop)    */
     "",                                             /* R betaling gemeld op (tijdstip) */
     ""                                              /* S betaald gecontroleerd (penningmeester) */
-  ]);
+  ];
+  blad.appendRow(rijWaarden);
 
-  opmaakToepassen(blad);
+  /* Alleen de nieuwe rij opmaken. De hele sheet opmaken kost vier
+     celbewerkingen per bestaande rij en maakt het versturen van een
+     aanvraag steeds trager naarmate de sheet groeit. De waarden van
+     de nieuwe rij staan al in rijWaarden, dus die worden niet nog
+     eens uit de sheet gelezen. */
+  opmaakRij(blad, blad.getLastRow(), rijWaarden);
 
   /* bij een duplicaat meteen een iDEAL-betaallink (Mollie) maken,
      zodat de aanvrager na verzenden direct kan betalen */
   var betaallink = "";
   var betaalFout = "";
   if (isDuplicaat(json)) {
-    var betaal = haalOfMaakBetaallink(json.betaalReferentie, false);
+    var betaal = haalOfMaakBetaallink(json.betaalReferentie, false, {
+      voornaam: json.voornaam,
+      achternaam: json.achternaam
+    });
     betaallink = betaal && betaal.url ? betaal.url : "";
     if (!betaallink && betaal) {
       betaalFout = String(betaal.fout || "");
@@ -117,17 +127,19 @@ function verwerkBetaalMelding(json) {
 }
 
 /* Zet 'ja' + tijdstip (kolommen Q en R) in de rij met deze
-   betaalreferentie (kolom P). Geeft terug of de rij gevonden is. */
+   betaalreferentie (kolom P). Geeft terug of de rij gevonden is.
+   Eerst alleen kolom P uitlezen; pas bij een match de waarden van die
+   ene rij ophalen, in plaats van het hele tabblad. */
 function markeerBetalingGemeld(blad, ref) {
   var laatste = blad.getLastRow();
   if (laatste >= 2) {
-    var waarden = blad.getRange(2, 1, laatste - 1, 19).getValues();
-    for (var i = 0; i < waarden.length; i++) {
-      if (String(waarden[i][15] || "").trim() === ref) {
+    var referenties = blad.getRange(2, 16, laatste - 1, 1).getValues();
+    for (var i = referenties.length - 1; i >= 0; i--) {
+      if (String(referenties[i][0] || "").trim() === ref) {
         var rij = i + 2;
         blad.getRange(rij, 17).setValue("ja");
         blad.getRange(rij, 18).setValue(vandaagTekst());
-        kleurSoortEnInvalide(blad, laatste);
+        kleurGegevensRij(blad, rij, blad.getRange(rij, 1, 1, 19).getValues()[0]);
         return true;
       }
     }
@@ -187,21 +199,25 @@ function koppelBetalingenTabblad() {
   return blad;
 }
 
-/* Laatste betaalregel met deze referentie (of null). */
+/* Laatste betaalregel met deze referentie (of null).
+   Eerst alleen kolom A lezen (dat is het scherpst om op te zoeken) en
+   pas de rest van de regel ophalen als er iets gevonden is. */
 function zoekBetaling(ref) {
   var gezocht = String(ref || "").trim();
   if (!gezocht) { return null; }
   var blad = koppelBetalingenTabblad();
   var laatste = blad.getLastRow();
   if (laatste < 2) { return null; }
-  var waarden = blad.getRange(2, 1, laatste - 1, 6).getValues();
-  for (var i = waarden.length - 1; i >= 0; i--) {
-    if (String(waarden[i][0] || "").trim() === gezocht) {
+  var referenties = blad.getRange(2, 1, laatste - 1, 1).getValues();
+  for (var i = referenties.length - 1; i >= 0; i--) {
+    if (String(referenties[i][0] || "").trim() === gezocht) {
+      var rij = i + 2;
+      var rest = blad.getRange(rij, 2, 1, 3).getValues()[0];
       return {
-        rij: i + 2,
-        paymentId: String(waarden[i][1] || ""),
-        url: String(waarden[i][2] || ""),
-        status: String(waarden[i][3] || "")
+        rij: rij,
+        paymentId: String(rest[0] || ""),
+        url: String(rest[1] || ""),
+        status: String(rest[2] || "")
       };
     }
   }
@@ -215,11 +231,15 @@ function statusNogBruikbaar(status) {
          s === "paid" || s === "authorized";
 }
 
-function schrijfBetaling(ref, paymentId, url, status) {
+/* Schrijft de betaalregel op rij 'rij'; rij 0 betekent: onderaan het
+   tabblad een nieuwe regel toevoegen. De zoekactie is bewust niet meer
+   hierin: de aanroeper heeft zojuist al naar de referentie gezocht en
+   geeft het rijnummer door, zodat het tabblad niet twee keer
+   doorlopen hoeft te worden. */
+function schrijfBetaling(ref, paymentId, url, status, rij) {
   var blad = koppelBetalingenTabblad();
-  var bestaand = zoekBetaling(ref);
-  var rij = bestaand ? bestaand.rij : blad.getLastRow() + 1;
-  blad.getRange(rij, 1, 1, 6).setValues([[
+  var regel = rij > 0 ? rij : blad.getLastRow() + 1;
+  blad.getRange(regel, 1, 1, 6).setValues([[
     String(ref || ""),
     String(paymentId || ""),
     String(url || ""),
@@ -227,7 +247,7 @@ function schrijfBetaling(ref, paymentId, url, status) {
     vandaagTekst(),
     status === "paid" ? vandaagTekst() : ""
   ]]);
-  return rij;
+  return regel;
 }
 
 function mollieTerugUrl() {
@@ -346,24 +366,31 @@ function maakMollieBetaling(ref, voornaam, achternaam) {
 }
 
 /* Bestaande (niet-verlopen) link hergebruiken, anders een nieuwe
-   maken. Met nieuw=true wordt altijd een verse link gemaakt. */
-function haalOfMaakBetaallink(ref, nieuw) {
+   maken. Met nieuw=true wordt altijd een verse link gemaakt.
+   Als bekend (aanvraag) is meegegeven, hoeft de naam van de aanvrager
+   niet meer uit het tabblad "Aanvragen" te worden gehaald. */
+function haalOfMaakBetaallink(ref, nieuw, bekend) {
   try {
     var gezocht = String(ref || "").trim();
     if (!gezocht) { return null; }
     var bestaand = zoekBetaling(gezocht);
-    if (!nieuw && bestaand && bestaand.url && statusNogBruikbaar(bestaand.status)) {
+    if (!nieuw && bestaand && bestaand.rij && bestaand.url &&
+        statusNogBruikbaar(bestaand.status)) {
       return bestaand;
     }
-    var aanvraag = zoekAanvraag(gezocht);
+    var aanvraag = (bekend && bekend.voornaam !== undefined) ? bekend
+      : zoekAanvraag(gezocht);
     var nieuwBetaling = maakMollieBetaling(gezocht,
       aanvraag ? aanvraag.voornaam : "",
       aanvraag ? aanvraag.achternaam : "");
     if (!nieuwBetaling) { return null; }
-    schrijfBetaling(gezocht, nieuwBetaling.paymentId, nieuwBetaling.url,
-      nieuwBetaling.status);
+    /* bij een bestaande regel die verlopen is: overschrijven, anders
+       een nieuwe regel erboven zetten */
+    var doel = (bestaand && bestaand.rij) ? bestaand.rij : 0;
+    var regel = schrijfBetaling(gezocht, nieuwBetaling.paymentId,
+      nieuwBetaling.url, nieuwBetaling.status, doel);
     return {
-      rij: 0,
+      rij: regel,
       paymentId: nieuwBetaling.paymentId,
       url: nieuwBetaling.url,
       status: nieuwBetaling.status
@@ -383,14 +410,19 @@ function verwerkMollieWebhook(inhoud) {
   var blad = koppelBetalingenTabblad();
   var laatste = blad.getLastRow();
   if (laatste < 2) { return false; }
-  var ids = blad.getRange(2, 2, laatste - 1, 3).getValues();
+  /* Alleen kolom B (payment-id) uitlezen om de regel te vinden; de
+     betaalreferentie in kolom A pas ophalen als de status 'paid' is.
+     Let op: de betaalreferentie staat in kolom A, niet in C. */
+  var ids = blad.getRange(2, 2, laatste - 1, 1).getValues();
   for (var i = 0; i < ids.length; i++) {
     if (String(ids[i][0] || "").trim() === id) {
       var rij = i + 2;
       schrijfBetalingStatus(rij, status);
       if (status === "paid") {
-        markeerBetalingGemeld(koppelSpreadsheet().blad,
-          String(ids[i][1] || "").trim());
+        var ref = String(blad.getRange(rij, 1).getValue() || "").trim();
+        if (ref) {
+          markeerBetalingGemeld(koppelSpreadsheet().blad, ref);
+        }
       }
       return true;
     }
@@ -406,28 +438,14 @@ function jsonpAntwoord(callback, obj) {
   return ContentService.createTextOutput(naam + "(" + JSON.stringify(obj) + ");")
     .setMimeType(ContentService.MimeType.JAVASCRIPT);
 }
-function verfraaiAanvragenSheet() {
-  var blad = koppelSpreadsheet().blad;
-  opmaakToepassen(blad);
-}
 
 /* Zet consistente opmaak op de hele sheet: groene/witte koptekst,
    eerste rij bevroren, randen en kolombreedtes die zich aan de
-   tekst aanpassen. Kan gerust vaker draaien. */
+   tekst aanpassen. Kan gerust vaker draaien.
+   Let op: dit is de volledige passe en daarmee de langzame variant.
+   Voor een nieuwe aanvraag gebruik je opmaakRij() op één rij. */
 function opmaakToepassen(blad) {
-  blad.setRowHeight(1, 24);
-  blad.setFrozenRows(1);
-
-  var kop = blad.getRange(1, 1, 1, 19);
-  kop.setFontWeight("bold")
-     .setBackground("#1b5e20")
-     .setFontColor("#ffffff")
-     .setFontFamily("Arial")
-     .setFontSize(10)
-     .setHorizontalAlignment("center")
-     .setVerticalAlignment("middle")
-     .setBorder(true, true, true, true, true, true,
-                "#cfd8dc", SpreadsheetApp.BorderStyle.SOLID);
+  opmaakKop(blad);
 
   var laatste = blad.getLastRow();
   if (laatste >= 2) {
@@ -445,6 +463,44 @@ function opmaakToepassen(blad) {
   } else {
     fitKolombreedtes(blad, 1);
   }
+}
+
+/* Koptekst van het tabblad opmaken (voor elke aanroep goedkoop). */
+function opmaakKop(blad) {
+  blad.setRowHeight(1, 24);
+  blad.setFrozenRows(1);
+  blad.getRange(1, 1, 1, 19)
+      .setFontWeight("bold")
+      .setBackground("#1b5e20")
+      .setFontColor("#ffffff")
+      .setFontFamily("Arial")
+      .setFontSize(10)
+      .setHorizontalAlignment("center")
+      .setVerticalAlignment("middle")
+      .setBorder(true, true, true, true, true, true,
+                 "#cfd8dc", SpreadsheetApp.BorderStyle.SOLID);
+}
+
+/* Alleen één gegevensrij opmaken: hetzelfde uiterlijk als de
+   volledige passe, maar zonder de andere rijen aan te raken. */
+function opmaakRij(blad, rij, rijWaarden) {
+  if (!blad || rij < 2) { return; }
+  blad.getRange(rij, 1, 1, 19)
+      .setFontFamily("Arial")
+      .setFontSize(10)
+      .setVerticalAlignment("middle")
+      .setBorder(true, true, true, true, true, true,
+                 "#e0e0e0", SpreadsheetApp.BorderStyle.SOLID);
+  /* D, E en I mogen afbreken: als één bereik, dus één call in plaats
+     van drie. */
+  blad.getRangeList([
+    blad.getRange(rij, 4, 1, 2),
+    blad.getRange(rij, 9, 1, 1)
+  ]).setWrap(true);
+  /* De waarden van de nieuwe rij zijn al bekend; alleen als ze niet
+     zijn meegegeven worden ze opgehaald. */
+  kleurGegevensRij(blad, rij, rijWaarden ||
+    blad.getRange(rij, 1, 1, 19).getValues()[0]);
 }
 
 /* Pas kolombreedtes aan de langste tekst in elke kolom aan (kop
@@ -498,29 +554,49 @@ function fitKolombreedtes(blad, laatste) {
 function kleurSoortEnInvalide(blad, laatste) {
   var waarden = blad.getRange(2, 1, laatste - 1, 19).getValues();
   for (var i = 0; i < waarden.length; i++) {
-    var rij = i + 2;
-    var soort = String(waarden[i][1] || "").toLowerCase();    /* B */
-    var invalide = String(waarden[i][7] || "").toLowerCase(); /* H */
-    var gemeld = String(waarden[i][16] || "").toLowerCase();  /* Q */
-    var gecontroleerd = String(waarden[i][18] || "").toLowerCase(); /* S */
-    blad.getRange(rij, 2).setBackground(
-      soort === "duplicaat" ? "#fff3cd" :
-      soort === "nieuw"     ? "#e8f5e9" : "#ffffff");
-    blad.getRange(rij, 8).setBackground(
-      invalide === "ja" ? "#e8f5e9" :
-      invalide === "nee" ? "#ffcdd2" : "#ffffff");
-    blad.getRange(rij, 17).setBackground(
-      gemeld === "ja" ? "#dcedc8" : "#ffffff");
-    blad.getRange(rij, 19).setBackground(
-      gecontroleerd === "ja" ? "#a5d6a7" : "#ffffff");
+    kleurGegevensRij(blad, i + 2, waarden[i]);
   }
+}
+
+/* Kleurt één gegevensrij (rijnummer 2 of hoger; rij 1 is de kop).
+   De vier kleureigen cellen staan in één keer met setBackgrounds; dat
+   is één API-call in plaats van vier. De overige cellen krijgen een
+   lege kleur, wat Google Sheets als "geen achtergrond" opslaat. */
+function kleurGegevensRij(blad, rij, rijWaarden) {
+  var soort        = String(rijWaarden[1] || "").toLowerCase();    /* B */
+  var invalide     = String(rijWaarden[7] || "").toLowerCase();    /* H */
+  var gemeld       = String(rijWaarden[16] || "").toLowerCase();   /* Q */
+  var gecontroleerd = String(rijWaarden[18] || "").toLowerCase(); /* S */
+  var kleuren = [];
+  for (var c = 0; c < 19; c++) { kleuren.push(""); }
+  kleuren[1]  = soort === "duplicaat" ? "#fff3cd" :
+                soort === "nieuw"     ? "#e8f5e9" : "";
+  kleuren[7]  = invalide === "ja" ? "#e8f5e9" :
+                invalide === "nee" ? "#ffcdd2" : "";
+  kleuren[16] = gemeld === "ja" ? "#dcedc8" : "";
+  kleuren[18] = gecontroleerd === "ja" ? "#a5d6a7" : "";
+  blad.getRange(rij, 1, 1, 19).setBackgrounds([kleuren]);
 }
 
 /* ------------------------------------------------------------
    Koppelt een spreadsheet en gebruikt (of maakt) het tabblad
    "Aanvragen" met kolomkoppen.
+
+   Binnen één aanroep wordt het resultaat onthouden: koppelSpreadsheet()
+   wordt per verzoek meerdere keren aangeroepen en elke aanroep kost
+   anders een paar API-verragingen. Bij de start van doPost/doGet wordt
+   het geheugen geleegd, zodat er nooit iets uit een vorige aanroep
+   overblijft.
    ------------------------------------------------------------ */
+var _koppelCache = null;
+
+function resetKoppelCache() {
+  _koppelCache = null;
+}
+
 function koppelSpreadsheet() {
+  if (_koppelCache) { return _koppelCache; }
+
   var bestand;
   try {
     bestand = SpreadsheetApp.getActiveSpreadsheet();
@@ -571,7 +647,9 @@ function koppelSpreadsheet() {
     opmaakToepassen(blad);
   }
 
-  return { bestand: bestand, blad: blad, nieuwGemaakt: nieuwGemaakt };
+  return (_koppelCache = {
+    bestand: bestand, blad: blad, nieuwGemaakt: nieuwGemaakt
+  });
 }
 
 /* ------------------------------------------------------------
@@ -580,9 +658,12 @@ function koppelSpreadsheet() {
    Loopt u als function in de Apps Script-editor.
    ------------------------------------------------------------ */
 function resetAanvragenTab() {
-  var koppel = koppelSpreadsheet();
-  koppel.blad.clear();
-  /* na clear is het tabblad leeg: koppen + opmaak opnieuw */
+  var blad = koppelSpreadsheet().blad;
+  blad.clear();
+  /* Na clear is het tabblad leeg en moeten de koppen opnieuw.
+     Het onthouden resultaat van koppelSpreadsheet() eerst leegzetten:
+     anders komt de lege blad terug en blijft de koprij weg. */
+  resetKoppelCache();
   koppelSpreadsheet();
   return "Tabblad 'Aanvragen' is leeggemaakt en opnieuw opgebouwd.";
 }
@@ -616,6 +697,7 @@ function verplaatsNaarMap(bestand, mapNaam) {
    opent (geen formulier, alleen "backend actief").
    ------------------------------------------------------------ */
 function doGet(e) {
+  resetKoppelCache();
   var params = (e && e.parameter) ? e.parameter : {};
   var act = String(params["act"] || "").trim().toLowerCase();
 

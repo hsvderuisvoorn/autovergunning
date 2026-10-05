@@ -128,38 +128,76 @@ function zetHandmatigBlok(zichtbaar) {
   }
 }
 
-/* Haalt de iDEAL-betaallink op en toont de grote betaalknop. */
-function vraagBetaallinkOp(nieuw) {
+/* Zet de grote iDEAL-knop op een link. */
+function zetMollieKnop(url, status) {
   var blok = document.getElementById("mollieBlok");
   var knop = document.getElementById("mollieKnop");
+  if (!blok || !knop || !url) { return; }
+  laatsteMollieUrl = url;
+  knop.href = url;
+  var tekst = document.getElementById("mollieUrlTekst");
+  if (tekst) { tekst.textContent = url; }
+  blok.hidden = false;
+  blok.style.display = "block";
+  toonMollieStatus(status || "");
+}
+
+/* Toont de betaalknop. Het antwoord op het versturen van de aanvraag
+   bevat de iDEAL-link al; pas als die ontbreekt hoeft er een tweede
+   ronde tocht naar de backend gemaakt te worden. */
+function toonBetaallink(antwoord) {
+  var url = String((antwoord && antwoord.betaallink) || "");
+  if (url) {
+    zetMollieKnop(url, "");
+    return;
+  }
+  /* toon meteen dat er aan gewerkt wordt, anders lijkt het stil */
+  var blok = document.getElementById("mollieBlok");
+  if (blok && haalRefOp()) {
+    blok.hidden = false;
+    blok.style.display = "block";
+    toonMollieStatus("De iDEAL-link wordt opgehaald...");
+  }
+  vraagBetaallinkOp(false);
+}
+
+/* Haalt de iDEAL-betaallink op en toont de grote betaalknop. */
+function vraagBetaallinkOp(nieuw) {
   var ref = laatsteRef || haalRefOp();
-  if (!blok || !knop || !ref || !BACKEND_URL) { return; }
+  if (!ref || !BACKEND_URL) { return; }
   toonMollieStatus(nieuw ? "Een nieuwe betaallink wordt aangemaakt..." : "Betaallink ophalen...");
   backendJsonp("betaallink", "ref=" + encodeURIComponent(ref) + "&nieuw=" + (nieuw ? "1" : "0"))
     .then(function (data) {
       var url = data && data.url ? data.url : "";
       if (!url) {
-        blok.hidden = true;
+        var blok = document.getElementById("mollieBlok");
+        if (blok) { blok.hidden = true; blok.style.display = "none"; }
         toonMollieStatus("");
         /* geen iDEAL-link? dan moet de handmatige optie zichtbaar zijn */
         zetHandmatigBlok(true);
         return;
       }
-      laatsteMollieUrl = url;
-      knop.href = url;
-      var tekst = document.getElementById("mollieUrlTekst");
-      if (tekst) { tekst.textContent = url; }
-      blok.hidden = false;
-      toonMollieStatus(data.nieuw ? "Nieuwe betaallink aangemaakt." : "");
+      zetMollieKnop(url, data.nieuw ? "Nieuwe betaallink aangemaakt." : "");
     })
     .catch(function () {
-      blok.hidden = true;
+      var blok = document.getElementById("mollieBlok");
+      if (blok) { blok.hidden = true; blok.style.display = "none"; }
       toonMollieStatus("");
       zetHandmatigBlok(true);
     });
 }
 
-/* Controleert na terugkomst van Mollie of de betaling binnen is. */
+/* ------------------------------------------------------------
+   Controleert na terugkomst van Mollie of de betaling binnen is.
+   ------------------------------------------------------------
+   Banken laten een iDEAL-betaling meestal enkele seconden tot een
+   minuut landen. Daarom wordt de status na terugkomst enkele keren
+   automatisch opgehaald in plaats van één keer: de aanvrager hoeft
+   niet zelf op 'Controleer nu' te klikken. Na de laatste poging
+   blijft de knop staan voor het geval het langer duurt. */
+var TERUG_POGINGEN = 6;      /* 6 x 2,5 s = maximaal 15 s       */
+var TERUG_INTERVAL = 2500;
+
 function controleerBetaalstatus() {
   var sectie = document.getElementById("terugVanBetaling");
   var tekst = document.getElementById("terugTekst");
@@ -171,33 +209,56 @@ function controleerBetaalstatus() {
   sectie.style.display = "block";
   var form = document.getElementById("aanvraagForm");
   if (form) { form.hidden = true; form.style.display = "none"; }
-  backendJsonp("status", "ref=" + encodeURIComponent(ref))
-    .then(function (data) {
-      var status = data && data.status ? String(data.status) : "";
-      if (status === "paid" || status === "authorized") {
-        if (tekst) {
-          tekst.innerHTML = "Uw betaling van &euro;5 is ontvangen. Uw aanvraag voor een duplicaat is daarmee afgerond; u ontvangt de duplicaat zo snel mogelijk per post.";
-        }
-        var klaar = document.getElementById("terugStatusKnop");
-        if (klaar) { klaar.hidden = true; klaar.style.display = "none"; }
-        return;
-      }
+  /* 'Nieuwe betaallink' in de slottekst: die link wordt pas in de
+     tekst gezet als het automatisch controleren niets opleverde. */
+  function koppelOpnieuwKnop() {
+    var knop = document.getElementById("mollieOpnieuw");
+    if (knop) {
+      knop.addEventListener("click", function (e) {
+        e.preventDefault();
+        vraagBetaallinkOp(true);
+      });
+    }
+  }
+
+  var poging = 0;
+  function opnieuw(wachten) {
+    if (poging >= TERUG_POGINGEN) {
       if (tekst) {
         tekst.innerHTML = "Wij hebben uw betaling nog niet binnen. Het kan zijn dat uw bank het nog verwerkt. Kies <em>Controleer nu</em> om het opnieuw te proberen. Is de betaling niet gelukt? Vraag dan <a href=\"#\" id=\"mollieOpnieuw\">een nieuwe betaallink</a> of mail ons uw betaalreferentie.";
-        var opnieuw = document.getElementById("mollieOpnieuw");
-        if (opnieuw) {
-          opnieuw.addEventListener("click", function (e) {
-            e.preventDefault();
-            vraagBetaallinkOp(true);
-          });
-        }
+        koppelOpnieuwKnop();
       }
-    })
-    .catch(function () {
+      return;
+    }
+    if (wachten) {
       if (tekst) {
-        tekst.innerHTML = "Wij konden uw betalingstatus niet ophalen. Controleer dit later opnieuw, of mail ons uw betaalreferentie.";
+        tekst.innerHTML = "Wij controleren uw betaling automatisch nog even (poging " +
+          (poging + 1) + " van " + TERUG_POGINGEN + ")...";
       }
-    });
+      setTimeout(function () { opnieuw(false); }, TERUG_INTERVAL);
+      return;
+    }
+    poging++;
+    backendJsonp("status", "ref=" + encodeURIComponent(ref))
+      .then(function (data) {
+        var status = data && data.status ? String(data.status) : "";
+        if (status === "paid" || status === "authorized") {
+          if (tekst) {
+            tekst.innerHTML = "Uw betaling van &euro;5 is ontvangen. Uw aanvraag voor een duplicaat is daarmee afgerond; u ontvangt de duplicaat zo snel mogelijk per post.";
+          }
+          var klaar = document.getElementById("terugStatusKnop");
+          if (klaar) { klaar.hidden = true; klaar.style.display = "none"; }
+          return;
+        }
+        if (tekst) {
+          tekst.innerHTML = "Wij hebben uw betaling nog niet binnen; uw bank verwerkt die nog. Wij controleren automatisch opnieuw.";
+        }
+        opnieuw(true);
+      })
+      .catch(function () { opnieuw(true); });
+  }
+
+  opnieuw(false);
 }
 
 function maakReferentie() {
@@ -409,7 +470,7 @@ function toonStatus(tekst, soort) {
 /* ------------------------------------------------------------
    Geluktpagina tonen na een succesvolle verzending
    ------------------------------------------------------------ */
-function toonGeluktPagina() {
+function toonGeluktPagina(antwoord) {
   var form = document.getElementById("aanvraagForm");
   var sectie = document.getElementById("geluktPagina");
   if (sectie) {
@@ -427,7 +488,7 @@ function toonGeluktPagina() {
   if (duplicaat) { duplicaat.hidden = !isDuplicaat; }
   if (isDuplicaat) {
     vulBetaalgegevensIn();
-    vraagBetaallinkOp(false);
+    toonBetaallink(antwoord);
   }
   if (sectie && sectie.scrollIntoView) { sectie.scrollIntoView(); }
   window.scrollTo(0, 0);
@@ -487,8 +548,11 @@ function postNaarBackend(lichaam) {
 }
 
 function verstuurAanvraag(aanvraag) {
-  return postNaarBackend(aanvraag).then(function () {
-    return "verstuurd";
+  return postNaarBackend(aanvraag).then(function (tekst) {
+    var antwoord = {};
+    try { antwoord = JSON.parse(tekst) || {}; } catch (e) { antwoord = {}; }
+    if (antwoord.ok === false) { throw new Error("backend-fout"); }
+    return antwoord;
   });
 }
 
@@ -498,12 +562,14 @@ function verstuurAanvraag(aanvraag) {
 function verstuurWachtrij() {
   var rij = haalWachtrij();
   if (!rij.length) { return Promise.resolve(0); }
+  var laatsteAntwoord = null;
   var beloften = rij.map(function (item) {
-    return verstuurAanvraag(item).then(function () {
+    return verstuurAanvraag(item).then(function (antwoord) {
       laatsteSoortAanvraag = item.soortAanvraag || "";
       laatsteRef = item.betaalReferentie || "";
       bewaarRef(laatsteRef);
       laatsteOvv = maakOvv(item);
+      laatsteAntwoord = antwoord;
       var overig = haalWachtrij().filter(function (x) {
         return x.wachtrijId !== item.wachtrijId;
       });
@@ -516,7 +582,7 @@ function verstuurWachtrij() {
   return Promise.all(beloften).then(function (resultaten) {
     var geslaagd = resultaten.reduce(function (a, b) { return a + b; }, 0);
     if (geslaagd > 0 && !haalWachtrij().length) {
-      toonGeluktPagina();
+      toonGeluktPagina(laatsteAntwoord);
       resetFormulier();
     }
     return geslaagd;
@@ -677,9 +743,9 @@ function verstuurFormulier(e) {
   }
 
   toonStatus("Aanvraag wordt verstuurd...", "info");
-  verstuurAanvraag(aanvraag).then(function () {
+  verstuurAanvraag(aanvraag).then(function (antwoord) {
     try {
-      toonGeluktPagina();
+      toonGeluktPagina(antwoord);
       resetFormulier();
     } catch (err) {
       toonStatus("Uw aanvraag is verstuurd en is in goede orde ontvangen. De bevestigingspagina kon niet getoond worden; ververs de pagina.", "info");
