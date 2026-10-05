@@ -349,6 +349,17 @@ button#verstuurBtn:disabled {
   cursor: pointer;
 }
 .betalen-knop:hover { filter: brightness(1.12); }
+
+/* Zolang de iDEAL-link nog niet binnen is, mag de knop niet
+   klikbaar zijn. Anders opent een tik de pagina opnieuw in een nieuw
+   tabblad, wat op een leeg scherm lijkt: de knop heeft dan nog geen
+   link. Het ophalen van de link duurt soms twintig seconden of
+   langer, dus dit gat is makkelijk te raken. */
+.betalen-knop.niet-klaar {
+  opacity: 0.55;
+  pointer-events: none;
+  cursor: progress;
+}
 .link-knop {
   background: none;
   border: none;

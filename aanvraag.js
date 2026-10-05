@@ -152,11 +152,30 @@ function zetMollieKnop(url, status) {
   if (!blok || !knop || !url) { return; }
   laatsteMollieUrl = url;
   knop.href = url;
+  /* pas nu is de knop echt bruikbaar */
+  knop.classList.remove("niet-klaar");
+  knop.removeAttribute("aria-disabled");
   var tekst = document.getElementById("mollieUrlTekst");
   if (tekst) { tekst.textContent = url; }
   blok.hidden = false;
   blok.style.display = "block";
   toonMollieStatus(status || "");
+}
+
+/* Zet de knop zichtbaar, maar nog niet klikbaar. Zonder deze
+   volgende regel zou een tik op de knop een leeg tabblad openen,
+   omdat de link nog niet binnen is. */
+function toonKnopNogNietKlaar() {
+  var blok = document.getElementById("mollieBlok");
+  var knop = document.getElementById("mollieKnop");
+  if (blok && haalRefOp()) {
+    blok.hidden = false;
+    blok.style.display = "block";
+  }
+  if (knop) {
+    knop.classList.add("niet-klaar");
+    knop.setAttribute("aria-disabled", "true");
+  }
 }
 
 /* Toont de betaalknop. Het antwoord op het versturen van de aanvraag
@@ -169,12 +188,8 @@ function toonBetaallink(antwoord) {
     return;
   }
   /* toon meteen dat er aan gewerkt wordt, anders lijkt het stil */
-  var blok = document.getElementById("mollieBlok");
-  if (blok && haalRefOp()) {
-    blok.hidden = false;
-    blok.style.display = "block";
-    toonMollieStatus("De iDEAL-link wordt opgehaald...");
-  }
+  toonKnopNogNietKlaar();
+  toonMollieStatus("De iDEAL-link wordt opgehaald...");
   vraagBetaallinkOp(false);
 }
 
@@ -185,9 +200,23 @@ function vraagBetaallinkOp(nieuw) {
   toonMollieStatus(nieuw ? "Een nieuwe betaallink wordt aangemaakt..." : "Betaallink ophalen...");
   /* Extra ruimte: hier maakt de backend een order aan bij Mollie, en
      gemeten is dat de webapp zelf soms al dertig seconden duurt. */
-  backendJsonp("betaallink",
-    "ref=" + encodeURIComponent(ref) + "&nieuw=" + (nieuw ? "1" : "0"),
-    90000)
+  function poging(nummer) {
+    return backendJsonp("betaallink",
+      "ref=" + encodeURIComponent(ref) + "&nieuw=" + (nieuw ? "1" : "0"),
+      90000).catch(function (fout) {
+      /* Zelfde reden als bij het versturen van de aanvraag: de webapp
+         geeft regelmatig een 404 of duurt lang. Opnieuw proberen, want
+         een aanvraager die een lege pagina ziet denkt tot zover niet
+         aan de betaling. */
+      if (nummer < 2) {
+        toonMollieStatus("Verbinding mislukt, opnieuw proberen...");
+        return wacht(2000).then(function () { return poging(nummer + 1); });
+      }
+      throw fout;
+    });
+  }
+  toonKnopNogNietKlaar();
+  return poging(0)
     .then(function (data) {
       var url = data && data.url ? data.url : "";
       if (!url) {
@@ -200,10 +229,18 @@ function vraagBetaallinkOp(nieuw) {
       }
       zetMollieKnop(url, data.nieuw ? "Nieuwe betaallink aangemaakt." : "");
     })
-    .catch(function () {
-      var blok = document.getElementById("mollieBlok");
-      if (blok) { blok.hidden = true; blok.style.display = "none"; }
-      toonMollieStatus("");
+    .catch(function (fout) {
+      /* De knop blijft staan, maar niet klikbaar, en er staat
+         duidelijk waarom. Met de handmatige betaalgegevens kan de
+         aanvrager in elk geval door. */
+      var knop = document.getElementById("mollieKnop");
+      if (knop) {
+        knop.classList.add("niet-klaar");
+        knop.setAttribute("aria-disabled", "true");
+      }
+      toonMollieStatus("De iDEAL-link kon niet worden opgehaald. " +
+        "Tik op 'Vraag een nieuwe betaallink' hieronder, of gebruik de " +
+        "betaalgegevens.");
       zetHandmatigBlok(true);
     });
 }
