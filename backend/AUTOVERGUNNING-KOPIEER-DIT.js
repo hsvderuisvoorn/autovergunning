@@ -94,9 +94,21 @@ function foutMelding(fout) {
 /* ------------------------------------------------------------
    De aanvraag als rij wegschrijven. Apart uitgehaald, zodat zowel
    doPost als het GET-verzoek (act=aanvraag) dit kunnen gebruiken.
+
+   Twee keer dezelfde aanvraag mag nooit twee rijen maken. Gemeten
+   blijkt dat een verzoek vanuit een browser regelmatig een 404 geeft
+   terwijl de rij wél is weggeschreven; de pagina stuurt dan opnieuw.
+   Daarom wordt eerst op het aanvraag-id in kolom P gekeken en wordt
+   alleen echt nieuw weggeschreven als die nog niet bestaat.
    ------------------------------------------------------------ */
 function schrijfAanvraagRij(json) {
   var blad = koppelSpreadsheet().blad;
+  var referentie = String(json.betaalReferentie || json.aanvraagId || "").trim();
+  if (referentie && zoekRijMetReferentie(blad, referentie) > 0) {
+    /* Reeds binnengekomen, bijvoorbeeld via een poging waarvan het
+       antwoord nooit is aangekomen. */
+    return { ok: true, alBinnen: true };
+  }
   var rijWaarden = [
     naarDagMaandJaar(json.datumAanvraag),          /* A datum aanvraag (dd-mm-jjjj)  */
     json.soortAanvraag      || "",                 /* B soort aanvraag (nieuw/duplicaat) */
@@ -118,7 +130,13 @@ function schrijfAanvraagRij(json) {
     "",                                             /* R betaling gemeld op (tijdstip) */
     ""                                              /* S betaald gecontroleerd (penningmeester) */
   ];
-  blad.appendRow(rijWaarden);
+  var nieuweRij = 0;
+  try {
+    blad.appendRow(rijWaarden);
+    nieuweRij = blad.getLastRow();
+  } catch (foutSchrijf) {
+    throw new Error("rij wegschrijven: " + foutMelding(foutSchrijf));
+  }
 
   /* Alleen de nieuwe rij opmaken. De hele sheet opmaken kost vier
      celbewerkingen per bestaande rij en maakt het versturen van een
@@ -137,7 +155,7 @@ function schrijfAanvraagRij(json) {
      kunt draaien om de hele sheet alsnog netjes te maken. */
   if (opmaakNieuweRijAan()) {
     try {
-      opmaakRij(blad, blad.getLastRow(), rijWaarden);
+      opmaakRij(blad, nieuweRij, rijWaarden);
     } catch (foutOpmaak) {
       Logger.log("opmaak van de nieuwe rij mislukt (de rij zelf staat er): "
         + foutMelding(foutOpmaak));

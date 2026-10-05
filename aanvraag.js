@@ -18,7 +18,7 @@
 
 "use strict";
 
-var BACKEND_URL = "https://script.google.com/macros/s/AKfycbxLTeiQhZoQ6705WdvmYTxYcA5y7h_Fp1i2E_LAsmNvCPR2nIOIb9ZTX4Fb0v09jF8g/exec";
+var BACKEND_URL = "https://script.google.com/macros/s/AKfycbx9uR0C-BBxMgQdyFR-DKbeWgo4_P3WWOvaQJrnFQFYoXdPB-QqXVlRIjwIDnFPT-C9/exec";
 
 var WACHTRIJ_SLEUTEL = "wachtrijAutovergunning";
 var laatsteSoortAanvraag = "";
@@ -32,6 +32,13 @@ var laatsteMollieUrl = "";
    Ruim er tijd voor; het opslaan zelf doet geen enkele aanroep naar
    een externe dienst meer. */
 var VERZEND_TIMEOUT_MS = 45000;
+
+/* Hoe vaak het versturen wordt herhaald voordat het naar de wachtrij
+   gaat. Gemeten is dat de Apps Script-webapp soms een 404 geeft of
+   meer dan dertig seconden duurt; met drie pogingen is dat zelden
+   echt mislukt. Dubbele rijen worden door de backend voorkomen: die
+   kijkt eerst of er al een rij met hetzelfde aanvraag-id bestaat. */
+var VERZEND_POGINGEN = 3;
 
 /* ------------------------------------------------------------
    Betaalgegevens duplicaat (EPC/SEPA QR en handmatige overboeking)
@@ -57,7 +64,7 @@ function backendJsonp(act, params, timeoutMs) {
       try { delete window[cb]; } catch (e) { window[cb] = undefined; }
       if (script.parentNode) { script.parentNode.removeChild(script); }
       reject(new Error("timeout"));
-    }, timeoutMs || 12000);
+    }, timeoutMs || VERZEND_TIMEOUT_MS);
     window[cb] = function (data) {
       clearTimeout(timer);
       try { delete window[cb]; } catch (e) { window[cb] = undefined; }
@@ -176,7 +183,11 @@ function vraagBetaallinkOp(nieuw) {
   var ref = laatsteRef || haalRefOp();
   if (!ref || !BACKEND_URL) { return; }
   toonMollieStatus(nieuw ? "Een nieuwe betaallink wordt aangemaakt..." : "Betaallink ophalen...");
-  backendJsonp("betaallink", "ref=" + encodeURIComponent(ref) + "&nieuw=" + (nieuw ? "1" : "0"))
+  /* Extra ruimte: hier maakt de backend een order aan bij Mollie, en
+     gemeten is dat de webapp zelf soms al dertig seconden duurt. */
+  backendJsonp("betaallink",
+    "ref=" + encodeURIComponent(ref) + "&nieuw=" + (nieuw ? "1" : "0"),
+    90000)
     .then(function (data) {
       var url = data && data.url ? data.url : "";
       if (!url) {
@@ -294,14 +305,15 @@ function maakAanvraagId() {
    verbindingsprobleem ook hier even op moet winnen. */
 function controleerOfOntvangen(id) {
   if (!id) { return Promise.resolve(false); }
+  /* Drie pogingen: deze controle beslist of een aanvraag al binnen is,
+     en een 404 van de webapp zou anders ten onrechte betekenen dat
+     de aanvraag nogmaals de wachtrij in gaat. */
   function vraag(poging) {
-    return backendJsonp("bekend", { ref: id }).then(function (antwoord) {
+    return backendJsonp("bekend", { ref: id }, VERZEND_TIMEOUT_MS).then(function (antwoord) {
       return !!(antwoord && antwoord.gevonden);
     }).catch(function () {
-      if (poging < 1) {
-        return new Promise(function (wachten) {
-          setTimeout(function () { wachten(); }, 2000);
-        }).then(function () { return vraag(poging + 1); });
+      if (poging < 2) {
+        return wacht(1500).then(function () { return vraag(poging + 1); });
       }
       return false;
     });
@@ -587,8 +599,28 @@ function postNaarBackend(lichaam) {
 
 function verstuurAanvraag(aanvraag) {
   /* postNaarBackend geeft al een object terug en gooit zelf een fout
-     zodra het antwoord geen expliciet {ok:true} is. */
-  return postNaarBackend(aanvraag);
+     zodra het antwoord geen expliciet {ok:true} is.
+
+     Gemeten: een verzoek naar de Apps Script-webapp faalt regelmatig
+     met een 404 of een 404-achtig antwoord, ook al is de rij gewoon
+     weggeschreven. Daarom meerdere pogingen. Dat is veilig, want de
+     backend kijkt eerst of er al een rij met dit aanvraag-id bestaat
+     en schrijft die dus niet nog een keer weg. */
+  function poging(nummer) {
+    return postNaarBackend(aanvraag).catch(function (fout) {
+      if (nummer >= VERZEND_POGINGEN - 1) { throw fout; }
+      return wacht(1200).then(function () {
+        toonStatus("Verbinding mislukt, opnieuw proberen (" +
+          (nummer + 2) + " van " + VERZEND_POGINGEN + ")...", "info");
+        return poging(nummer + 1);
+      });
+    });
+  }
+  return poging(0);
+}
+
+function wacht(ms) {
+  return new Promise(function (klaar) { setTimeout(klaar, ms); });
 }
 
 /* ------------------------------------------------------------
