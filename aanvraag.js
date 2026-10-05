@@ -577,12 +577,46 @@ function postNaarBackend(lichaam) {
     return res.text();
   }).then(function (tekst) {
     var t = String(tekst || "").trim();
-    /* Apps Script toont bij een interne fout een HTML-foutpagina. */
-    if (t.slice(0, 1) === "<") { throw new Error("foutpagina"); }
-    if (t.indexOf("\"ok\":false") >= 0) { throw new Error("backend-fout"); }
+    /* Apps Script toont bij een interne fout een HTML-foutpagina. De
+       echte fout staat in die pagina; eruit halen geeft meer houvast
+       dan het misleidende "geen verbinding". */
+    if (t.slice(0, 1) === "<") {
+      throw new Error("Backendfout: " (foutUitHtml(t) || "onbekende fout"));
+    }
+    /* Onze eigen fouten: {ok:false, fout:"..."}. */
+    if (t.indexOf("\"ok\":false") >= 0) {
+      var a = {};
+      try { a = JSON.parse(t) || {}; } catch (e) { a = {}; }
+      throw new Error(String(a.fout || a.reden || "backend-fout"));
+    }
     return t;
   });
   return raceMetTimeout(verzoek, VERZEND_TIMEOUT_MS);
+}
+
+/* Haal de foutmelding uit een Apps Script HTML-foutpagina.
+   Patronen als "ReferenceError: X is not defined" of
+   "Exception: ..." komen daarin voor. */
+function foutUitHtml(html) {
+  var s = String(html || "");
+  var patronen = [
+    /<div class="errorMessage"[^>]*>([\s\S]{0,400}?)<\/div>/i,
+    /(ReferenceError:[^<]{0,300})/,
+    /(TypeError:[^<]{0,300})/,
+    /(RangeError:[^<]{0,300})/,
+    /(Exception:[^<]{0,300})/,
+    /(Script function not found[^<]{0,200})/,
+    /(Service invoked too many times[^<]{0,200})/,
+    /(<title>Error[^<]{0,200})/i
+  ];
+  for (var i = 0; i < patronen.length; i++) {
+    var m = patronen[i].exec(s);
+    if (m && m[1]) {
+      return m[1].replace(/<[^>]*>/g, " ").replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'").replace(/\s+/g, " ").trim();
+    }
+  }
+  return "";
 }
 
 function verstuurAanvraag(aanvraag) {
@@ -817,6 +851,7 @@ function verstuurFormulier(e) {
        níet staat, wordt de aanvraag bewaard voor een nieuwe poging;
        anders zou dezelfde aanvraag twee keer in de sheet komen. */
     var tijdig = String((fout && fout.message) || "") === "timeout";
+    var oorzaak = String((fout && fout.message) || "");
     toonStatus(tijdig
       ? "De verbinding met de backend is traag. Even wachten, wij controleren of uw aanvraag is binnen..."
       : "Geen verbinding met de backend. Even wachten, wij controleren of uw aanvraag is binnen...", "info");
@@ -828,6 +863,17 @@ function verstuurFormulier(e) {
         } catch (err) {
           toonStatus("Uw aanvraag is in goede orde ontvangen. De bevestigingspagina kon niet getoond worden; ververs de pagina.", "info");
         }
+        return;
+      }
+      /* De backend gaf een echte fout terug. Die is nuttiger dan het
+         misleidende "geen verbinding", dus die tonen we. */
+      if (oorzaak && oorzaak !== "timeout") {
+        console.error("Backendfout bij verzenden: " + oorzaak);
+        aanvraag.wachtrijId = "av-" + Date.now() + "-" +
+          Math.random().toString(36).slice(2, 8);
+        bewaarWachtrij(haalWachtrij().concat([aanvraag]));
+        toonStatus("Uw aanvraag is bewaard, maar kon niet worden verstuurd. Oorzaak: " +
+          oorzaak + " Probeer het later opnieuw.", "fout");
         return;
       }
       aanvraag.wachtrijId = "av-" + Date.now() + "-" +

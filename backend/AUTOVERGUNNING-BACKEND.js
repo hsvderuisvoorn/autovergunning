@@ -66,29 +66,34 @@ function doPost(e) {
       .setMimeType(ContentService.MimeType.TEXT);
   }
 
-  var blad = koppelSpreadsheet().blad;
-  var rijWaarden = [
-    naarDagMaandJaar(json.datumAanvraag),          /* A datum aanvraag (dd-mm-jjjj)  */
-    json.soortAanvraag      || "",                 /* B soort aanvraag (nieuw/duplicaat) */
-    json.voorletters        || "",                 /* C voorletters                  */
-    json.voornaam           || "",                 /* D voornaam                     */
-    json.achternaam         || "",                 /* E achternaam                    */
-    nlDatum(json.geboortedatum),                /* F geboortedatum (dd-mm-jjjj)    */
-    json.vispasnummer       || "",                 /* G vispasnummer                  */
-    json.invalidenkaart     || "",                 /* H invalidenkaart (ja/nee)       */
-    json.invalidenkaartNummer || "",               /* I invalidenkaartnummer          */
-    json.voorwaardenRadio   === "ja" ? "ja" : "",  /* J akkoord voorwaarden (radio)   */
-    json.borgAkkoord        === true ? "ja" : "",  /* K akkoord borg €25 sleutel      */
-    json.avgAkkoord         === true ? "ja" : "",  /* L akkoord AVG                    */
-    json.voorwaardenCheckbox === true ? "ja" : "", /* M akkoord voorwaarden (checkbox)*/
-    vandaagTekst(),                                 /* N ingediend op (dd-mm-jjjj hh:mm) */
-    json.duplicaatKostenAkkoord === true ? "ja" : "", /* O akkoord €5 duplicaat        */
-    json.betaalReferentie   || json.aanvraagId || "", /* P referentie (duplicaat: betaal; nieuw: aanvraag-id) */
-    "",                                             /* Q betaling gemeld (via knop)    */
-    "",                                             /* R betaling gemeld op (tijdstip) */
-    ""                                              /* S betaald gecontroleerd (penningmeester) */
-  ];
-  blad.appendRow(rijWaarden);
+  /* Alles wat hier gebeurt zit in een try/catch: zonder vangnet
+     stond Apps Script bij een fout stil met een HTML-foutpagina en leek
+     het voor de aanvrager alsof er geen verbinding was. Met de foutmelding
+     in het antwoord ziet de pagina wat er werkelijk mis is. */
+  try {
+    var blad = koppelSpreadsheet().blad;
+    var rijWaarden = [
+      naarDagMaandJaar(json.datumAanvraag),          /* A datum aanvraag (dd-mm-jjjj)  */
+      json.soortAanvraag      || "",                 /* B soort aanvraag (nieuw/duplicaat) */
+      json.voorletters        || "",                 /* C voorletters                  */
+      json.voornaam           || "",                 /* D voornaam                     */
+      json.achternaam         || "",                 /* E achternaam                    */
+      nlDatum(json.geboortedatum),                /* F geboortedatum (dd-mm-jjjj)    */
+      json.vispasnummer       || "",                 /* G vispasnummer                  */
+      json.invalidenkaart     || "",                 /* H invalidenkaart (ja/nee)       */
+      json.invalidenkaartNummer || "",               /* I invalidenkaartnummer          */
+      json.voorwaardenRadio   === "ja" ? "ja" : "",  /* J akkoord voorwaarden (radio)   */
+      json.borgAkkoord        === true ? "ja" : "",  /* K akkoord borg €25 sleutel      */
+      json.avgAkkoord         === true ? "ja" : "",  /* L akkoord AVG                    */
+      json.voorwaardenCheckbox === true ? "ja" : "", /* M akkoord voorwaarden (checkbox)*/
+      vandaagTekst(),                                 /* N ingediend op (dd-mm-jjjj hh:mm) */
+      json.duplicaatKostenAkkoord === true ? "ja" : "", /* O akkoord €5 duplicaat        */
+      json.betaalReferentie   || json.aanvraagId || "", /* P referentie (duplicaat: betaal; nieuw: aanvraag-id) */
+      "",                                             /* Q betaling gemeld (via knop)    */
+      "",                                             /* R betaling gemeld op (tijdstip) */
+      ""                                              /* S betaald gecontroleerd (penningmeester) */
+    ];
+    blad.appendRow(rijWaarden);
 
   /* Alleen de nieuwe rij opmaken. De hele sheet opmaken kost vier
      celbewerkingen per bestaande rij en maakt het versturen van een
@@ -112,6 +117,18 @@ function doPost(e) {
   return ContentService.createTextOutput(
     JSON.stringify({ ok: true }))
     .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (fout) {
+    /* De rij is niet weggeschreven. Geef de reden terug zodat de
+       aanvraagpagina kan tonen wat er misging, in plaats van het
+       misleidende "geen verbinding". */
+    var melding = String(fout && fout.message ? fout.message : fout);
+    Logger.log("doPost mislukt: " + melding);
+    Logger.log(String(fout && fout.stack ? fout.stack : ""));
+    return ContentService.createTextOutput(
+      JSON.stringify({ ok: false, fout: melding }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
 }
 
 /* ------------------------------------------------------------
