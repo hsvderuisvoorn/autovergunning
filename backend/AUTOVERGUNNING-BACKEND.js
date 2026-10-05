@@ -494,24 +494,83 @@ function jsonpAntwoord(callback, obj) {
 }
 
 /* Lees de aanvraag terug uit de 'data'-parameter van ?act=aanvraag.
-   base64url: de variant van base64 die veilig in een URL past
-   (+ wordt -, = wordt ongeschikt). Null als er niets bruikbaars in zit. */
+   base64url is de variant van base64 die veilig in een URL past:
+   + wordt -, / wordt _, en de opvulling (=) wordt weggelaten.
+
+   Het decoderen gebeurt met een eigen routine in plaats van
+   Utilities.base64Decode: gemeten bleek dat die hier weigert en dan
+   terechtkomt in 'aanvraag onleesbaar', terwijl de aanvraag gewoon
+   goed was. Zelf decoderen werkt overal en geeft bovendien een echte
+   reden terug in plaats van een stilzwijgend niets.
+
+   Geeft een foutobject terug: {fout: "..."}. Succes is de aanvraag. */
 function leesAanvraagUitData(data) {
   var s = String(data || "").trim();
-  if (!s) { return null; }
-  s = s.replace(/-/g, "+").replace(/_/g, "/");
-  while (s.length % 4 !== 0) { s += "="; }
-  var grondstoffen = "";
+  if (!s) { return { fout: "geen data ontvangen" }; }
+  var bytes = b64urlNaarBytes(s);
+  if (!bytes) { return { fout: "data is geen base64" }; }
+  var grondstoffen = bytesNaarUtf8(bytes);
+  var aanvraag;
   try {
-    grondstoffen = Utilities.base64Decode(s);
+    aanvraag = JSON.parse(grondstoffen);
   } catch (fout) {
-    return null;
+    return {
+      fout: "data is geen geldige JSON (begin: " +
+        String(grondstoffen).slice(0, 60) + ")"
+    };
   }
-  try {
-    return JSON.parse(grondstoffen) || null;
-  } catch (fout) {
-    return null;
+  if (!aanvraag || typeof aanvraag !== "object") {
+    return { fout: "data bevat geen aanvraag" };
   }
+  return { aanvraag: aanvraag };
+}
+
+/* base64url -> array van bytes. Zonder padding, eigen alfabet. */
+function b64urlNaarBytes(tekst) {
+  var alfabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  var s = String(tekst || "").replace(/-/g, "+").replace(/_/g, "/");
+  var bytes = [];
+  var buffer = 0;
+  var bits = 0;
+  for (var i = 0; i < s.length; i++) {
+    var c = s.charAt(i);
+    if (c === "=") { break; }
+    var waarde = alfabet.indexOf(c);
+    if (waarde < 0) { continue; }
+    buffer = (buffer << 6) | waarde;
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      bytes.push((buffer >> bits) & 255);
+    }
+  }
+  return bytes;
+}
+
+/* array van bytes -> tekst, inclusief letters met accenten (UTF-8). */
+function bytesNaarUtf8(bytes) {
+  var s = "";
+  var i = 0;
+  while (i < bytes.length) {
+    var b = bytes[i++] & 255;
+    if (b < 0x80) {
+      s += String.fromCharCode(b);
+    } else if (b < 0xE0) {
+      s += String.fromCharCode(((b & 0x1F) << 6) | (bytes[i++] & 0x3F));
+    } else if (b < 0xF0) {
+      var c2 = bytes[i++] & 0x3F;
+      var c3 = bytes[i++] & 0x3F;
+      s += String.fromCharCode(((b & 0x0F) << 12) | (c2 << 6) | c3);
+    } else {
+      var e2 = bytes[i++] & 0x3F;
+      var e3 = bytes[i++] & 0x3F;
+      var e4 = bytes[i++] & 0x3F;
+      var cp = ((b & 0x07) << 18) | (e2 << 12) | (e3 << 6) | e4;
+      cp -= 0x10000;
+      s += String.fromCharCode(0xD800 + (cp >> 10), 0xDC00 + (cp & 0x3FF));
+    }
+  }
+  return s;
 }
 
 /* Zet consistente opmaak op de hele sheet: groene/witte koptekst,
@@ -789,14 +848,12 @@ function doGet(e) {
      JSONP werkt vanuit elke browser zonder problemen met rechten.
      De aanvraag staat als base64-tekst in de 'data'-parameter. */
   if (act === "aanvraag") {
-    var aanvraag = leesAanvraagUitData(String(params["data"] || ""));
-    if (!aanvraag) {
-      return jsonpAntwoord(params["callback"], {
-        ok: false, fout: "aanvraag onleesbaar"
-      });
+    var uit = leesAanvraagUitData(String(params["data"] || ""));
+    if (uit.fout) {
+      return jsonpAntwoord(params["callback"], { ok: false, fout: uit.fout });
     }
     try {
-      schrijfAanvraagRij(aanvraag);
+      schrijfAanvraagRij(uit.aanvraag);
       return jsonpAntwoord(params["callback"], { ok: true });
     } catch (foutSchrijf) {
       var reden = foutMelding(foutSchrijf);
