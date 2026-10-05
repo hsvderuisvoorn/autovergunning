@@ -128,9 +128,20 @@ function schrijfAanvraagRij(json) {
      Wil je het snelst mogelijk, zet dan de script-eigenschap
      OPMAAK_NIEUWE_RIJ op "nee": dan wordt de rij niet opgemaakt en
      draait verfraaiAanvragenSheet() achteraf alsnog de hele sheet
-     bij. */
+     bij.
+
+     Opmaken is uiterlijk. De rij staat op dat moment al vast, dus een
+     fout in de opmaak mag de aanvraag nooit blokkeren: anders ging een
+     aanvraag verloren door een cosmetisch probleem. De fout wordt
+     alleen gelogd, met de aanwijzing dat je verfraaiAanvragenSheet()
+     kunt draaien om de hele sheet alsnog netjes te maken. */
   if (opmaakNieuweRijAan()) {
-    opmaakRij(blad, blad.getLastRow(), rijWaarden);
+    try {
+      opmaakRij(blad, blad.getLastRow(), rijWaarden);
+    } catch (foutOpmaak) {
+      Logger.log("opmaak van de nieuwe rij mislukt (de rij zelf staat er): "
+        + foutMelding(foutOpmaak));
+    }
   }
 
   /* De iDEAL-link wordt hier NIET meer gemaakt. Een verzoek naar
@@ -181,7 +192,7 @@ function markeerBetalingGemeld(blad, ref) {
   if (!rij) { return false; }
   blad.getRange(rij, 17).setValue("ja");
   blad.getRange(rij, 18).setValue(vandaagTekst());
-  kleurGegevensRij(blad, rij, blad.getRange(rij, 1, 1, 19).getValues()[0]);
+  kleurGegevensRij(blad, rij, blad.getRange(rij, 1, 1, bruikbareBreedte(blad)).getValues()[0]);
   return true;
 }
 
@@ -583,7 +594,7 @@ function opmaakToepassen(blad) {
 
   var laatste = blad.getLastRow();
   if (laatste >= 2) {
-    var data = blad.getRange(2, 1, laatste - 1, 19);
+    var data = blad.getRange(2, 1, laatste - 1, bruikbareBreedte(blad));
     data.setFontFamily("Arial")
         .setFontSize(10)
         .setVerticalAlignment("middle")
@@ -603,7 +614,7 @@ function opmaakToepassen(blad) {
 function opmaakKop(blad) {
   blad.setRowHeight(1, 24);
   blad.setFrozenRows(1);
-  blad.getRange(1, 1, 1, 19)
+  blad.getRange(1, 1, 1, bruikbareBreedte(blad))
       .setFontWeight("bold")
       .setBackground("#1b5e20")
       .setFontColor("#ffffff")
@@ -619,30 +630,50 @@ function opmaakKop(blad) {
    volledige passe, maar zonder de andere rijen aan te raken. */
 function opmaakRij(blad, rij, rijWaarden) {
   if (!blad || rij < 2) { return; }
-  blad.getRange(rij, 1, 1, 19)
+  /* Nooit een bereik vragen dat verder gaat dan het blad breed is:
+     dat levert de fout "Bereik niet gevonden" op en kost dan de
+     hele aanvraag. */
+  var breed = bruikbareBreedte(blad);
+  if (breed < 1) { return; }
+  blad.getRange(rij, 1, 1, breed)
       .setFontFamily("Arial")
       .setFontSize(10)
       .setVerticalAlignment("middle")
       .setBorder(true, true, true, true, true, true,
                  "#e0e0e0", SpreadsheetApp.BorderStyle.SOLID);
-  /* D, E en I mogen afbreken: als één bereik, dus één call in plaats
-     van drie. */
-  blad.getRangeList([
-    blad.getRange(rij, 4, 1, 2),
-    blad.getRange(rij, 9, 1, 1)
-  ]).setWrap(true);
+  /* D, E en I mogen afbreken. Eerst samen met getRangeList, maar dat
+     gaf "Bereik niet gevonden"; nu los per stuk, want dat is
+     betrouwbaarder en de duur van het opslaan blijft verwaarloosbaar. */
+  setWrapAlsPast(blad, rij, 4, 2);
+  setWrapAlsPast(blad, rij, 9, 1);
   /* De waarden van de nieuwe rij zijn al bekend; alleen als ze niet
      zijn meegegeven worden ze opgehaald. */
   kleurGegevensRij(blad, rij, rijWaarden ||
-    blad.getRange(rij, 1, 1, 19).getValues()[0]);
+    blad.getRange(rij, 1, 1, breed).getValues()[0]);
+}
+
+/* Het aantal kolommen waar we veilig mee mogen werken: het aantal
+   kopkolommen, maar nooit meer dan het blad heeft. */
+function bruikbareBreedte(blad) {
+  var breed = KOPPEN.length;
+  var hebben = blad.getLastColumn();
+  if (hebben && hebben < breed) { breed = hebben; }
+  return breed;
+}
+
+/* Zet afbreken, maar alleen als de kolommen ook bestaan. */
+function setWrapAlsPast(blad, rij, kolom, aantal) {
+  if (kolom + aantal - 1 > bruikbareBreedte(blad)) { return; }
+  blad.getRange(rij, kolom, 1, aantal).setWrap(true);
 }
 
 /* Pas kolombreedtes aan de langste tekst in elke kolom aan (kop
    rij en alle rijen eronder). */
 function fitKolombreedtes(blad, laatste) {
   if (laatste < 1) laatste = 1;
-  var kopRij = blad.getRange(1, 1, 1, 19).getValues()[0];
-  var waarden = laatste >= 2 ? blad.getRange(2, 1, laatste - 1, 19).getValues() : [];
+  var breed = bruikbareBreedte(blad);
+  var kopRij = blad.getRange(1, 1, 1, breed).getValues()[0];
+  var waarden = laatste >= 2 ? blad.getRange(2, 1, laatste - 1, breed).getValues() : [];
   var maxPerKolom = {
     1: 14,                                    /* A datum compact                   */
     2: 14,                                    /* B soort aanvraag compact          */
@@ -686,7 +717,7 @@ function fitKolombreedtes(blad, laatste) {
    - B soort aanvraag: nieuw = lichtgroen, duplicaat = amber
    - H invalidenkaart: ja = lichtgroen, nee = lichtrood               */
 function kleurSoortEnInvalide(blad, laatste) {
-  var waarden = blad.getRange(2, 1, laatste - 1, 19).getValues();
+  var waarden = blad.getRange(2, 1, laatste - 1, bruikbareBreedte(blad)).getValues();
   for (var i = 0; i < waarden.length; i++) {
     kleurGegevensRij(blad, i + 2, waarden[i]);
   }
@@ -701,16 +732,41 @@ function kleurGegevensRij(blad, rij, rijWaarden) {
   var invalide     = String(rijWaarden[7] || "").toLowerCase();    /* H */
   var gemeld       = String(rijWaarden[16] || "").toLowerCase();   /* Q */
   var gecontroleerd = String(rijWaarden[18] || "").toLowerCase(); /* S */
+  /* Precies zoveel kleuren als het bereik breed is, anders weigert
+     setBackgrounds de aanroep. */
+  var breed = bruikbareBreedte(blad);
   var kleuren = [];
-  for (var c = 0; c < 19; c++) { kleuren.push(""); }
-  kleuren[1]  = soort === "duplicaat" ? "#fff3cd" :
-                soort === "nieuw"     ? "#e8f5e9" : "";
-  kleuren[7]  = invalide === "ja" ? "#e8f5e9" :
-                invalide === "nee" ? "#ffcdd2" : "";
-  kleuren[16] = gemeld === "ja" ? "#dcedc8" : "";
-  kleuren[18] = gecontroleerd === "ja" ? "#a5d6a7" : "";
-  blad.getRange(rij, 1, 1, 19).setBackgrounds([kleuren]);
+  for (var c = 0; c < breed; c++) { kleuren.push(""); }
+  if (breed > 1) {
+    kleuren[1]  = soort === "duplicaat" ? "#fff3cd" :
+                  soort === "nieuw"     ? "#e8f5e9" : "";
+  }
+  if (breed > 7) {
+    kleuren[7]  = invalide === "ja" ? "#e8f5e9" :
+                  invalide === "nee" ? "#ffcdd2" : "";
+  }
+  if (breed > 16) {
+    kleuren[16] = gemeld === "ja" ? "#dcedc8" : "";
+  }
+  if (breed > 18) {
+    kleuren[18] = gecontroleerd === "ja" ? "#a5d6a7" : "";
+  }
+  blad.getRange(rij, 1, 1, breed).setBackgrounds([kleuren]);
 }
+
+/* De kolomkoppen van het tabblad "Aanvragen" (A t/m S).
+   Eén keer gedefinieerd, zodat het opslaan, het aanvullen en het
+   opmaken nooit uit elkaar kunnen lopen. Kolom T wordt door het
+   notificatiescript gebruikt voor "Mail verstuurd". */
+var KOPPEN = [
+  "Datum aanvraag", "Soort aanvraag", "Voorletters", "Voornaam",
+  "Achternaam", "Geboortedatum", "Vispasnummer", "Invalidenkaart",
+  "Invalidenkaartnummer", "Akkoord voorwaarden",
+  "Akkoord borg €25 sleutel", "Akkoord AVG",
+  "Akkoord voorwaarden", "Ingediend op", "Akkoord €5 duplicaat",
+  "Betaalreferentie", "Betaling gemeld", "Betaling gemeld op",
+  "Betaald gecontroleerd"
+];
 
 /* ------------------------------------------------------------
    Koppelt een spreadsheet en gebruikt (of maakt) het tabblad
@@ -751,15 +807,7 @@ function koppelSpreadsheet() {
     nieuwGemaakt = true;
   }
 
-  var koppen = [
-    "Datum aanvraag", "Soort aanvraag", "Voorletters", "Voornaam",
-    "Achternaam", "Geboortedatum", "Vispasnummer", "Invalidenkaart",
-    "Invalidenkaartnummer", "Akkoord voorwaarden",
-    "Akkoord borg €25 sleutel", "Akkoord AVG",
-    "Akkoord voorwaarden", "Ingediend op", "Akkoord €5 duplicaat",
-    "Betaalreferentie", "Betaling gemeld", "Betaling gemeld op",
-    "Betaald gecontroleerd"
-  ];
+  var koppen = KOPPEN;
 
   if (nieuwGemaakt || blad.getLastRow() === 0) {
     blad.getRange(1, 1, 1, koppen.length)
