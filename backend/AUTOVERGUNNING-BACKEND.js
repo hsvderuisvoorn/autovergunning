@@ -71,29 +71,54 @@ function doPost(e) {
      het voor de aanvrager alsof er geen verbinding was. Met de foutmelding
      in het antwoord ziet de pagina wat er werkelijk mis is. */
   try {
-    var blad = koppelSpreadsheet().blad;
-    var rijWaarden = [
-      naarDagMaandJaar(json.datumAanvraag),          /* A datum aanvraag (dd-mm-jjjj)  */
-      json.soortAanvraag      || "",                 /* B soort aanvraag (nieuw/duplicaat) */
-      json.voorletters        || "",                 /* C voorletters                  */
-      json.voornaam           || "",                 /* D voornaam                     */
-      json.achternaam         || "",                 /* E achternaam                    */
-      nlDatum(json.geboortedatum),                /* F geboortedatum (dd-mm-jjjj)    */
-      json.vispasnummer       || "",                 /* G vispasnummer                  */
-      json.invalidenkaart     || "",                 /* H invalidenkaart (ja/nee)       */
-      json.invalidenkaartNummer || "",               /* I invalidenkaartnummer          */
-      json.voorwaardenRadio   === "ja" ? "ja" : "",  /* J akkoord voorwaarden (radio)   */
-      json.borgAkkoord        === true ? "ja" : "",  /* K akkoord borg €25 sleutel      */
-      json.avgAkkoord         === true ? "ja" : "",  /* L akkoord AVG                    */
-      json.voorwaardenCheckbox === true ? "ja" : "", /* M akkoord voorwaarden (checkbox)*/
-      vandaagTekst(),                                 /* N ingediend op (dd-mm-jjjj hh:mm) */
-      json.duplicaatKostenAkkoord === true ? "ja" : "", /* O akkoord €5 duplicaat        */
-      json.betaalReferentie   || json.aanvraagId || "", /* P referentie (duplicaat: betaal; nieuw: aanvraag-id) */
-      "",                                             /* Q betaling gemeld (via knop)    */
-      "",                                             /* R betaling gemeld op (tijdstip) */
-      ""                                              /* S betaald gecontroleerd (penningmeester) */
-    ];
-    blad.appendRow(rijWaarden);
+    schrijfAanvraagRij(json);
+    return ContentService.createTextOutput(
+      JSON.stringify({ ok: true }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (fout) {
+    /* De rij is niet weggeschreven. Geef de reden terug zodat de
+       aanvraagpagina kan tonen wat er misging, in plaats van het
+       misleidende "geen verbinding". */
+    var melding = foutMelding(fout);
+    Logger.log("doPost mislukt: " + melding);
+    return ContentService.createTextOutput(
+      JSON.stringify({ ok: false, fout: melding }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function foutMelding(fout) {
+  return String(fout && fout.message ? fout.message : fout);
+}
+
+/* ------------------------------------------------------------
+   De aanvraag als rij wegschrijven. Apart uitgehaald, zodat zowel
+   doPost als het GET-verzoek (act=aanvraag) dit kunnen gebruiken.
+   ------------------------------------------------------------ */
+function schrijfAanvraagRij(json) {
+  var blad = koppelSpreadsheet().blad;
+  var rijWaarden = [
+    naarDagMaandJaar(json.datumAanvraag),          /* A datum aanvraag (dd-mm-jjjj)  */
+    json.soortAanvraag      || "",                 /* B soort aanvraag (nieuw/duplicaat) */
+    json.voorletters        || "",                 /* C voorletters                  */
+    json.voornaam           || "",                 /* D voornaam                     */
+    json.achternaam         || "",                 /* E achternaam                    */
+    nlDatum(json.geboortedatum),                /* F geboortedatum (dd-mm-jjjj)    */
+    json.vispasnummer       || "",                 /* G vispasnummer                  */
+    json.invalidenkaart     || "",                 /* H invalidenkaart (ja/nee)       */
+    json.invalidenkaartNummer || "",               /* I invalidenkaartnummer          */
+    json.voorwaardenRadio   === "ja" ? "ja" : "",  /* J akkoord voorwaarden (radio)   */
+    json.borgAkkoord        === true ? "ja" : "",  /* K akkoord borg €25 sleutel      */
+    json.avgAkkoord         === true ? "ja" : "",  /* L akkoord AVG                    */
+    json.voorwaardenCheckbox === true ? "ja" : "", /* M akkoord voorwaarden (checkbox)*/
+    vandaagTekst(),                                 /* N ingediend op (dd-mm-jjjj hh:mm) */
+    json.duplicaatKostenAkkoord === true ? "ja" : "", /* O akkoord €5 duplicaat        */
+    json.betaalReferentie   || json.aanvraagId || "", /* P referentie (duplicaat: betaal; nieuw: aanvraag-id) */
+    "",                                             /* Q betaling gemeld (via knop)    */
+    "",                                             /* R betaling gemeld op (tijdstip) */
+    ""                                              /* S betaald gecontroleerd (penningmeester) */
+  ];
+  blad.appendRow(rijWaarden);
 
   /* Alleen de nieuwe rij opmaken. De hele sheet opmaken kost vier
      celbewerkingen per bestaande rij en maakt het versturen van een
@@ -114,21 +139,7 @@ function doPost(e) {
      was, leek het alsof het versturen mislukte. De aanvraagpagina
      vraagt de link daarna zelf op (?act=betaallink) en laat ondertussen
      alvast zien dat er aan gewerkt wordt. */
-  return ContentService.createTextOutput(
-    JSON.stringify({ ok: true }))
-    .setMimeType(ContentService.MimeType.JSON);
-
-  } catch (fout) {
-    /* De rij is niet weggeschreven. Geef de reden terug zodat de
-       aanvraagpagina kan tonen wat er misging, in plaats van het
-       misleidende "geen verbinding". */
-    var melding = String(fout && fout.message ? fout.message : fout);
-    Logger.log("doPost mislukt: " + melding);
-    Logger.log(String(fout && fout.stack ? fout.stack : ""));
-    return ContentService.createTextOutput(
-      JSON.stringify({ ok: false, fout: melding }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
+  return { ok: true };
 }
 
 /* ------------------------------------------------------------
@@ -473,12 +484,34 @@ function verwerkMollieWebhook(inhoud) {
 }
 
 /* JSONP-antwoord: de aanvraagpagina leest het antwoord via een
-   script-tag, omdat de Apps Script-webapp geen CORS-headers zet. */
+   script-tag, omdat een POST vanuit een browser door de redirect van
+   Apps Script in een GET verandert (zie bij act=aanvraag). */
 function jsonpAntwoord(callback, obj) {
   var naam = String(callback || "cb").replace(/[^A-Za-z0-9_.]/g, "");
   if (!naam || naam.charAt(0) === "." || /^[0-9]/.test(naam)) { naam = "cb"; }
   return ContentService.createTextOutput(naam + "(" + JSON.stringify(obj) + ");")
     .setMimeType(ContentService.MimeType.JAVASCRIPT);
+}
+
+/* Lees de aanvraag terug uit de 'data'-parameter van ?act=aanvraag.
+   base64url: de variant van base64 die veilig in een URL past
+   (+ wordt -, = wordt ongeschikt). Null als er niets bruikbaars in zit. */
+function leesAanvraagUitData(data) {
+  var s = String(data || "").trim();
+  if (!s) { return null; }
+  s = s.replace(/-/g, "+").replace(/_/g, "/");
+  while (s.length % 4 !== 0) { s += "="; }
+  var grondstoffen = "";
+  try {
+    grondstoffen = Utilities.base64Decode(s);
+  } catch (fout) {
+    return null;
+  }
+  try {
+    return JSON.parse(grondstoffen) || null;
+  } catch (fout) {
+    return null;
+  }
 }
 
 /* Zet consistente opmaak op de hele sheet: groene/witte koptekst,
@@ -745,6 +778,32 @@ function doGet(e) {
   resetKoppelCache();
   var params = (e && e.parameter) ? e.parameter : {};
   var act = String(params["act"] || "").trim().toLowerCase();
+
+  /* DE AANVRAAG OPSLAAN.
+     Dit gaat bewust via een GET en niet via een POST. Een browser die
+     met fetch een POST doet naar een Apps Script-webapp krijgt van
+     Google een redirect (302), en die verandert automatisch in een GET.
+     Het gevolg is dat doPost nooit draait: de aanvraag wordt dan
+     stilzwijgend NIET opgeslagen terwijl de pagina wél denkt dat het
+     gelukt is. Dezelfde reden als bij ?act=bekend en ?act=betaallink:
+     JSONP werkt vanuit elke browser zonder problemen met rechten.
+     De aanvraag staat als base64-tekst in de 'data'-parameter. */
+  if (act === "aanvraag") {
+    var aanvraag = leesAanvraagUitData(String(params["data"] || ""));
+    if (!aanvraag) {
+      return jsonpAntwoord(params["callback"], {
+        ok: false, fout: "aanvraag onleesbaar"
+      });
+    }
+    try {
+      schrijfAanvraagRij(aanvraag);
+      return jsonpAntwoord(params["callback"], { ok: true });
+    } catch (foutSchrijf) {
+      var reden = foutMelding(foutSchrijf);
+      Logger.log("aanvraag opslaan mislukt: " + reden);
+      return jsonpAntwoord(params["callback"], { ok: false, fout: reden });
+    }
+  }
 
   /* Is er al een rij met deze referentie? De aanvraagpagina roept dit
      aan nadat een versturen mislukte: weet de aanvraag dan zeker dat

@@ -43,9 +43,12 @@ var DUPLICAAT_BEDRAG = "5.00";
 var QR_SERVICE = "https://api.qrserver.com/v1/create-qr-code/";
 var REF_SLEUTEL = "hsvDuplicaatRef";
 
-/* Vraagt de backend (JSONP, want de Apps Script-webapp stuurt geen
-   CORS-headers) om de actuele betaallink of betaalstatus op te halen. */
-function backendJsonp(act, params) {
+/* Vraagt de backend (JSONP) om iets op te halen of op te slaan.
+   Een POST vanuit de browser werkt niet bij een Apps Script-webapp:
+   Google stuurt na de POST een redirect (302) en de browser verandert
+   dat in een GET, waardoor doPost nooit draait. JSONP via een
+   script-tag heeft dat probleem niet en werkt overal. */
+function backendJsonp(act, params, timeoutMs) {
   return new Promise(function (resolve, reject) {
     if (!BACKEND_URL) { reject(new Error("geen backend")); return; }
     var cb = "hsvCb" + Date.now() + Math.floor(Math.random() * 1000);
@@ -54,7 +57,7 @@ function backendJsonp(act, params) {
       try { delete window[cb]; } catch (e) { window[cb] = undefined; }
       if (script.parentNode) { script.parentNode.removeChild(script); }
       reject(new Error("timeout"));
-    }, 12000);
+    }, timeoutMs || 12000);
     window[cb] = function (data) {
       clearTimeout(timer);
       try { delete window[cb]; } catch (e) { window[cb] = undefined; }
@@ -532,100 +535,60 @@ function toonGeluktPagina(antwoord) {
   window.scrollTo(0, 0);
 }
 
-/* Belofte afbreken als het te lang duurt. */
-function raceMetTimeout(belofte, ms) {
-  return new Promise(function (resolve, reject) {
-    var klaar = false;
-    var timer = setTimeout(function () {
-      if (klaar) { return; }
-      klaar = true;
-      reject(new Error("timeout"));
-    }, ms);
-    belofte.then(function (waarde) {
-      if (klaar) { return; }
-      klaar = true;
-      clearTimeout(timer);
-      resolve(waarde);
-    }, function (fout) {
-      if (klaar) { return; }
-      klaar = true;
-      clearTimeout(timer);
-      reject(fout);
-    });
-  });
+/* ------------------------------------------------------------
+   Aanvraag opslaan in de backend (één aanvraag)
+   ------------------------------------------------------------
+   Dit gaat via JSONP (?act=aanvraag) en niet via fetch met POST.
+   Reden, gemeten in een echte browser:
+     fetch POST -> Google stuurt 302 -> browser maakt er een GET van
+     -> doPost draait nooit -> het antwoord is de gewone
+        "Backend aanvraag Autovergunning: actief."-tekst
+     -> de aanvraag werd NIET weggeschreven terwijl het wel leek te
+        slagen. Vandaar dat het af en toe "geen verbinding" heette.
+   Een GET via een script-tag heeft dat probleem niet, en het antwoord
+   is bovendien echt leesbaar zodat een fout meteen zichtbaar is.
+   ------------------------------------------------------------ */
+
+/* Tekst -> base64url, veilig om in een URL te zetten. */
+function naarB64url(tekst) {
+  var s = String(tekst || "");
+  var bin;
+  if (typeof TextEncoder !== "undefined") {
+    var bytes = new TextEncoder().encode(s);
+    bin = "";
+    for (var i = 0; i < bytes.length; i++) {
+      bin += String.fromCharCode(bytes[i]);
+    }
+  } else {
+    bin = unescape(encodeURIComponent(s));
+  }
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-/* ------------------------------------------------------------
-   Verzoek naar de backend sturen (één aanvraag)
-   ------------------------------------------------------------
-   De webapp stuurt Access-Control-Allow-Origin: *, dus de statuscode is
-   leesbaar. Met 'no-cors' is elk antwoord onleesbaar en leek elk verzoek
-   geslaagd, ook wanneer de backend een fout teruggaf of helemaal niets
-   had opgeslagen; dan kreeg je ten onrechte de betaalpagina te zien.
-   ------------------------------------------------------------ */
 function postNaarBackend(lichaam) {
   if (!BACKEND_URL) {
     return Promise.reject(new Error("BACKEND_URL_LEEG"));
   }
-  var verzoek = fetch(BACKEND_URL, {
-    method: "POST",
-    mode: "cors",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify(lichaam)
-  }).then(function (res) {
-    if (!res.ok) { throw new Error("HTTP " + res.status); }
-    return res.text();
-  }).then(function (tekst) {
-    var t = String(tekst || "").trim();
-    /* Apps Script toont bij een interne fout een HTML-foutpagina. De
-       echte fout staat in die pagina; eruit halen geeft meer houvast
-       dan het misleidende "geen verbinding". */
-    if (t.slice(0, 1) === "<") {
-      throw new Error("Backendfout: " (foutUitHtml(t) || "onbekende fout"));
+  return backendJsonp("aanvraag",
+    "data=" + encodeURIComponent(naarB64url(JSON.stringify(lichaam))),
+    VERZEND_TIMEOUT_MS
+  ).then(function (antwoord) {
+    /* Streng zijn: alleen een expliciet {ok:true} telt als geslaagd.
+       Anders zou een onleesbaar of onverwacht antwoord ten onrechte
+       als succes gelden en de betaalpagina tonen zonder dat er
+       iets in de spreadsheet staat. */
+    if (!antwoord || antwoord.ok !== true) {
+      var reden = String((antwoord && antwoord.fout) || "onbekend antwoord van backend");
+      throw new Error(reden);
     }
-    /* Onze eigen fouten: {ok:false, fout:"..."}. */
-    if (t.indexOf("\"ok\":false") >= 0) {
-      var a = {};
-      try { a = JSON.parse(t) || {}; } catch (e) { a = {}; }
-      throw new Error(String(a.fout || a.reden || "backend-fout"));
-    }
-    return t;
+    return antwoord;
   });
-  return raceMetTimeout(verzoek, VERZEND_TIMEOUT_MS);
-}
-
-/* Haal de foutmelding uit een Apps Script HTML-foutpagina.
-   Patronen als "ReferenceError: X is not defined" of
-   "Exception: ..." komen daarin voor. */
-function foutUitHtml(html) {
-  var s = String(html || "");
-  var patronen = [
-    /<div class="errorMessage"[^>]*>([\s\S]{0,400}?)<\/div>/i,
-    /(ReferenceError:[^<]{0,300})/,
-    /(TypeError:[^<]{0,300})/,
-    /(RangeError:[^<]{0,300})/,
-    /(Exception:[^<]{0,300})/,
-    /(Script function not found[^<]{0,200})/,
-    /(Service invoked too many times[^<]{0,200})/,
-    /(<title>Error[^<]{0,200})/i
-  ];
-  for (var i = 0; i < patronen.length; i++) {
-    var m = patronen[i].exec(s);
-    if (m && m[1]) {
-      return m[1].replace(/<[^>]*>/g, " ").replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'").replace(/\s+/g, " ").trim();
-    }
-  }
-  return "";
 }
 
 function verstuurAanvraag(aanvraag) {
-  return postNaarBackend(aanvraag).then(function (tekst) {
-    var antwoord = {};
-    try { antwoord = JSON.parse(tekst) || {}; } catch (e) { antwoord = {}; }
-    if (antwoord.ok === false) { throw new Error("backend-fout"); }
-    return antwoord;
-  });
+  /* postNaarBackend geeft al een object terug en gooit zelf een fout
+     zodra het antwoord geen expliciet {ok:true} is. */
+  return postNaarBackend(aanvraag);
 }
 
 /* ------------------------------------------------------------
