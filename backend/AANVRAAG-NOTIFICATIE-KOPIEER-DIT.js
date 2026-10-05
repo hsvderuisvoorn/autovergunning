@@ -60,6 +60,40 @@ var SLUITLEUTEL = "verstuurOnverzondenAanvragen.lock";
    mail sturen, waardoor het dagquota van Gmail leegloopt. */
 var MAX_POGINGEN_PER_RIJ = 3;
 var MAILMARK_KOP = "Mail verstuurd";
+var TIMER_FUNCTIE = "verstuurOnverzudenMails";
+var TIMER_ELKE_MINUTEN = 5;
+
+/* ------------------------------------------------------------
+   Zet de timer aan die elke TIMER_ELKE_MINUTEN minuten kijkt of er
+   nog een ongemelde aanvraag is.
+
+   Waarom dit los staat: een tijdgestuurde trigger is geen code maar
+   een losse klok die Apps Script in het project bewaart. Wordt het
+   project gekopieerd, verplaatst of opgeschoond, dan verdwijnt die
+   klok en blijft het script zelf gewoon werken als je het zelf
+   aanroept. Er stond geen code om die klok te maken, waardoor er
+   stilletjes geen mail meer kon binnenkomen zonder dat er ergens een
+   fout zichtbaar werd.
+
+   Voer deze functie één keer uit na het plakken van het script.
+   Daarna draait de timer vanzelf. Tweede keer uitvoeren is
+   onschadelijk: dan zegt het script alleen dat de timer er al is.
+   ------------------------------------------------------------ */
+function maakTimer() {
+  var bestaande = ScriptApp.getProjectTriggers();
+  var aantal = 0;
+  for (var i = 0; i < bestaande.length; i++) {
+    if (bestaande[i].getHandlerFunction() === TIMER_FUNCTIE) { aantal++; }
+  }
+  if (aantal > 0) {
+    Logger.log("De timer staat er al (" + aantal + "x). Er is niets toegevoegd.");
+    return;
+  }
+  ScriptApp.newTrigger(TIMER_FUNCTIE).timeBased()
+    .everyMinutes(TIMER_ELKE_MINUTEN).create();
+  Logger.log("Timer aangemaakt: " + TIMER_FUNCTIE + " elke " +
+    TIMER_ELKE_MINUTEN + " minuten.");
+}
 
 function verstuurOnverzondenMails() {
   var lock = LockService.getScriptLock();
