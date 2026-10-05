@@ -28,6 +28,14 @@
    BETALEN MET iDEAL (Mollie) is optioneel: zonder MOLLIE_API_KEY
    werkt alleen de QR-code en het handmatig overmaken. Het tabblad
    "Betalingen" wordt aangemaakt zodra er een betaallink nodig is.
+
+   Snelheid: het opslaan van een aanvraag doet geen enkel verzoek naar
+   een externe dienst. De iDEAL-link wordt pas opgehaald nadat de
+   aanvraag is weggeschreven, dus een trage of onbereikbare Mollie
+   kan het versturen van een aanvraag niet meer vertragen of laten
+   mislukken. Wil je de nieuwe rij ook meteen opgemaakt hebben, laat
+   dan OPMAAK_NIEUWE_RIJ op de standaardwaarde staan; zet hem op "nee"
+   en draai achteraf verfraaiAanvragenSheet() voor het snelst.
    ------------------------------------------------------------ */
 
 /* ------------------------------------------------------------
@@ -75,7 +83,7 @@ function doPost(e) {
     json.voorwaardenCheckbox === true ? "ja" : "", /* M akkoord voorwaarden (checkbox)*/
     vandaagTekst(),                                 /* N ingediend op (dd-mm-jjjj hh:mm) */
     json.duplicaatKostenAkkoord === true ? "ja" : "", /* O akkoord €5 duplicaat        */
-    json.betaalReferentie   || "",                 /* P betaalreferentie (alleen duplicaat) */
+    json.betaalReferentie   || json.aanvraagId || "", /* P referentie (duplicaat: betaal; nieuw: aanvraag-id) */
     "",                                             /* Q betaling gemeld (via knop)    */
     "",                                             /* R betaling gemeld op (tijdstip) */
     ""                                              /* S betaald gecontroleerd (penningmeester) */
@@ -86,26 +94,23 @@ function doPost(e) {
      celbewerkingen per bestaande rij en maakt het versturen van een
      aanvraag steeds trager naarmate de sheet groeit. De waarden van
      de nieuwe rij staan al in rijWaarden, dus die worden niet nog
-     eens uit de sheet gelezen. */
-  opmaakRij(blad, blad.getLastRow(), rijWaarden);
-
-  /* bij een duplicaat meteen een iDEAL-betaallink (Mollie) maken,
-     zodat de aanvrager na verzenden direct kan betalen */
-  var betaallink = "";
-  var betaalFout = "";
-  if (isDuplicaat(json)) {
-    var betaal = haalOfMaakBetaallink(json.betaalReferentie, false, {
-      voornaam: json.voornaam,
-      achternaam: json.achternaam
-    });
-    betaallink = betaal && betaal.url ? betaal.url : "";
-    if (!betaallink && betaal) {
-      betaalFout = String(betaal.fout || "");
-    }
+     eens uit de sheet gelezen.
+     Wil je het snelst mogelijk, zet dan de script-eigenschap
+     OPMAAK_NIEUWE_RIJ op "nee": dan wordt de rij niet opgemaakt en
+     draait verfraaiAanvragenSheet() achteraf alsnog de hele sheet
+     bij. */
+  if (opmaakNieuweRijAan()) {
+    opmaakRij(blad, blad.getLastRow(), rijWaarden);
   }
 
+  /* De iDEAL-link wordt hier NIET meer gemaakt. Een verzoek naar
+     Mollie duurt merkbaar langer dan het wegschrijven van de rij en
+     hing vroeger in dezelfde keten: als Mollie traag of onbereikbaar
+     was, leek het alsof het versturen mislukte. De aanvraagpagina
+     vraagt de link daarna zelf op (?act=betaallink) en laat ondertussen
+     alvast zien dat er aan gewerkt wordt. */
   return ContentService.createTextOutput(
-    JSON.stringify({ ok: true, betaallink: betaallink, fout: betaalFout }))
+    JSON.stringify({ ok: true }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -126,25 +131,30 @@ function verwerkBetaalMelding(json) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-/* Zet 'ja' + tijdstip (kolommen Q en R) in de rij met deze
-   betaalreferentie (kolom P). Geeft terug of de rij gevonden is.
-   Eerst alleen kolom P uitlezen; pas bij een match de waarden van die
-   ene rij ophalen, in plaats van het hele tabblad. */
-function markeerBetalingGemeld(blad, ref) {
+/* Nummer van de laatste rij met deze referentie in kolom P, of 0.
+   Eerst alleen kolom P uitlezen; dat is één smalle lezing en daarmee
+   veel sneller dan het hele tabblad doorlopen. */
+function zoekRijMetReferentie(blad, ref) {
+  var gezocht = String(ref || "").trim();
+  if (!gezocht) { return 0; }
   var laatste = blad.getLastRow();
-  if (laatste >= 2) {
-    var referenties = blad.getRange(2, 16, laatste - 1, 1).getValues();
-    for (var i = referenties.length - 1; i >= 0; i--) {
-      if (String(referenties[i][0] || "").trim() === ref) {
-        var rij = i + 2;
-        blad.getRange(rij, 17).setValue("ja");
-        blad.getRange(rij, 18).setValue(vandaagTekst());
-        kleurGegevensRij(blad, rij, blad.getRange(rij, 1, 1, 19).getValues()[0]);
-        return true;
-      }
-    }
+  if (laatste < 2) { return 0; }
+  var referenties = blad.getRange(2, 16, laatste - 1, 1).getValues();
+  for (var i = referenties.length - 1; i >= 0; i--) {
+    if (String(referenties[i][0] || "").trim() === gezocht) { return i + 2; }
   }
-  return false;
+  return 0;
+}
+
+/* Zet 'ja' + tijdstip (kolommen Q en R) in de rij met deze
+   betaalreferentie (kolom P). Geeft terug of de rij gevonden is. */
+function markeerBetalingGemeld(blad, ref) {
+  var rij = zoekRijMetReferentie(blad, ref);
+  if (!rij) { return false; }
+  blad.getRange(rij, 17).setValue("ja");
+  blad.getRange(rij, 18).setValue(vandaagTekst());
+  kleurGegevensRij(blad, rij, blad.getRange(rij, 1, 1, 19).getValues()[0]);
+  return true;
 }
 
 /* ------------------------------------------------------------
@@ -181,6 +191,21 @@ function mollieApiSleutel() {
 
 function isDuplicaat(json) {
   return String((json && json.soortAanvraag) || "").trim().toLowerCase() === "duplicaat";
+}
+
+/* Moet de nieuwe rij bij het opslaan worden opgemaakt? Standaard ja.
+   Met de script-eigenschap OPMAAK_NIEUWE_RIJ op "nee" gaat het
+   opslaan nog sneller (ongeveer zeven sheet-calls minder per
+   aanvraag) en maak je achteraf de hele sheet netjes met
+   verfraaiAanvragenSheet(). */
+function opmaakNieuweRijAan() {
+  try {
+    var keuze = String(PropertiesService.getScriptProperties()
+      .getProperty("OPMAAK_NIEUWE_RIJ") || "").trim().toLowerCase();
+    return keuze !== "nee" && keuze !== "no" && keuze !== "false";
+  } catch (fout) {
+    return true;
+  }
 }
 
 function koppelBetalingenTabblad() {
@@ -693,13 +718,29 @@ function verplaatsNaarMap(bestand, mapNaam) {
 }
 
 /* ------------------------------------------------------------
-   Bevestigingspagina als iemand de /exec-URL in een browser
-   opent (geen formulier, alleen "backend actief").
+   Leesacties van de aanvraagpagina:
+     ?act=bekend       staat er al een rij met deze referentie?
+     ?act=betaallink   haal of maak de iDEAL-link
+     ?act=status       betaalstatus (en zo nodig navragen bij Mollie)
+   Zonder parameter valt de pagina terug op "backend actief".
    ------------------------------------------------------------ */
 function doGet(e) {
   resetKoppelCache();
   var params = (e && e.parameter) ? e.parameter : {};
   var act = String(params["act"] || "").trim().toLowerCase();
+
+  /* Is er al een rij met deze referentie? De aanvraagpagina roept dit
+     aan nadat een versturen mislukte: weet de aanvraag dan zeker dat
+     'geen verbinding' alleen een traag antwoord was en niet een
+     verloren aanvraag, en zet dezelfde aanvraag niet nog een keer in
+     de wachtrij. */
+  if (act === "bekend") {
+    var refBekend = String(params["ref"] || "").trim();
+    return jsonpAntwoord(params["callback"], {
+      ok: true,
+      gevonden: zoekRijMetReferentie(koppelSpreadsheet().blad, refBekend) > 0
+    });
+  }
 
   /* aanvrager vraagt de actuele iDEAL-betaallink op */
   if (act === "betaallink") {

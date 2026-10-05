@@ -26,6 +26,13 @@ var laatsteOvv = "";
 var laatsteRef = "";
 var laatsteMollieUrl = "";
 
+/* Apps Script start koud op en doet zijn sheetbewerkingen in losse
+   rondgangen. Eerdelijk was hier 20 seconden de grens, waardoor een
+   aanvraag die netjes was weggeschreven toch als mislukt werd gemeld.
+   Ruim er tijd voor; het opslaan zelf doet geen enkele aanroep naar
+   een externe dienst meer. */
+var VERZEND_TIMEOUT_MS = 45000;
+
 /* ------------------------------------------------------------
    Betaalgegevens duplicaat (EPC/SEPA QR en handmatige overboeking)
    ------------------------------------------------------------ */
@@ -143,8 +150,8 @@ function zetMollieKnop(url, status) {
 }
 
 /* Toont de betaalknop. Het antwoord op het versturen van de aanvraag
-   bevat de iDEAL-link al; pas als die ontbreekt hoeft er een tweede
-   ronde tocht naar de backend gemaakt te worden. */
+   bevat de iDEAL-link bewust niet: het opslaan van de aanvraag mag niet
+   wachten op Mollie, dus de link wordt hier apart opgehaald. */
 function toonBetaallink(antwoord) {
   var url = String((antwoord && antwoord.betaallink) || "");
   if (url) {
@@ -266,6 +273,37 @@ function maakReferentie() {
   var deel1 = t.getTime().toString(36).toUpperCase().slice(-6);
   var deel2 = Math.random().toString(36).toUpperCase().slice(2, 6);
   return "DUP-" + deel1 + "-" + deel2;
+}
+
+/* Elke aanvraag krijgt een eigen id, ook een 'nieuwe'. Het id gaat naar
+   kolom P van het tabblad Aanvragen en wordt gebruikt om na te gaan of
+   een aanvraag is aangekomen. Zo hoeft een aanvraag die alleen een traag
+   antwoord opleverde niet dubbel in de wachtrij te komen. */
+function maakAanvraagId() {
+  var t = new Date();
+  var deel1 = t.getTime().toString(36).toUpperCase().slice(-6);
+  var deel2 = Math.random().toString(36).toUpperCase().slice(2, 6);
+  return "AV-" + deel1 + "-" + deel2;
+}
+
+/* Staat er al een rij met dit id in de spreadsheet? Eén smalle lezing op
+   de referentiekolom, dus snel. Twee pogingen omdat een gewoon
+   verbindingsprobleem ook hier even op moet winnen. */
+function controleerOfOntvangen(id) {
+  if (!id) { return Promise.resolve(false); }
+  function vraag(poging) {
+    return backendJsonp("bekend", { ref: id }).then(function (antwoord) {
+      return !!(antwoord && antwoord.gevonden);
+    }).catch(function () {
+      if (poging < 1) {
+        return new Promise(function (wachten) {
+          setTimeout(function () { wachten(); }, 2000);
+        }).then(function () { return vraag(poging + 1); });
+      }
+      return false;
+    });
+  }
+  return vraag(0);
 }
 
 function maakOvv(a) {
@@ -544,7 +582,7 @@ function postNaarBackend(lichaam) {
     if (t.indexOf("\"ok\":false") >= 0) { throw new Error("backend-fout"); }
     return t;
   });
-  return raceMetTimeout(verzoek, 20000);
+  return raceMetTimeout(verzoek, VERZEND_TIMEOUT_MS);
 }
 
 function verstuurAanvraag(aanvraag) {
@@ -563,6 +601,14 @@ function verstuurWachtrij() {
   var rij = haalWachtrij();
   if (!rij.length) { return Promise.resolve(0); }
   var laatsteAntwoord = null;
+
+  function weghalen(item) {
+    var overig = haalWachtrij().filter(function (x) {
+      return x.wachtrijId !== item.wachtrijId;
+    });
+    bewaarWachtrij(overig);
+  }
+
   var beloften = rij.map(function (item) {
     return verstuurAanvraag(item).then(function (antwoord) {
       laatsteSoortAanvraag = item.soortAanvraag || "";
@@ -570,13 +616,24 @@ function verstuurWachtrij() {
       bewaarRef(laatsteRef);
       laatsteOvv = maakOvv(item);
       laatsteAntwoord = antwoord;
-      var overig = haalWachtrij().filter(function (x) {
-        return x.wachtrijId !== item.wachtrijId;
-      });
-      bewaarWachtrij(overig);
+      weghalen(item);
       return 1;
     }).catch(function () {
-      return 0; /* niet gelukt, blijft in de wachtrij */
+      /* Ook hier geldt: het item kan toch zijn opgeslagen, want de
+         verbinding kan bij het antwoord zijn gekapt. Kijk dat eerst na,
+         anders komt dezelfde aanvraag alsnog dubbel in de sheet. */
+      return controleerOfOntvangen(item.aanvraagId).then(function (binnen) {
+        if (binnen) {
+          laatsteSoortAanvraag = item.soortAanvraag || "";
+          laatsteRef = item.betaalReferentie || "";
+          bewaarRef(laatsteRef);
+          laatsteOvv = maakOvv(item);
+          laatsteAntwoord = laatsteAntwoord || {};
+          weghalen(item);
+          return 1;
+        }
+        return 0; /* niet gelukt, blijft in de wachtrij */
+      });
     });
   });
   return Promise.all(beloften).then(function (resultaten) {
@@ -724,8 +781,11 @@ function verstuurFormulier(e) {
   }
 
   var aanvraag = verzamelAanvraag();
+  aanvraag.aanvraagId = maakAanvraagId();
   if (aanvraag.soortAanvraag === "duplicaat") {
+    /* Bij een duplicaat is de referentie ook de betaalreferentie. */
     aanvraag.betaalReferentie = maakReferentie();
+    aanvraag.aanvraagId = aanvraag.betaalReferentie;
     laatsteRef = aanvraag.betaalReferentie;
     bewaarRef(laatsteRef);
   } else {
@@ -750,11 +810,31 @@ function verstuurFormulier(e) {
     } catch (err) {
       toonStatus("Uw aanvraag is verstuurd en is in goede orde ontvangen. De bevestigingspagina kon niet getoond worden; ververs de pagina.", "info");
     }
-  }).catch(function () {
-    aanvraag.wachtrijId = "av-" + Date.now() + "-" +
-      Math.random().toString(36).slice(2, 8);
-    bewaarWachtrij(haalWachtrij().concat([aanvraag]));
-    toonStatus("Geen verbinding: uw aanvraag is opgeslagen en wordt automatisch verzonden zodra u weer online bent. U krijgt dan ook de bevestiging te zien.", "info");
+  }).catch(function (fout) {
+    /* Geen verbinding betekent niet altijd dat de aanvraag kwijt is: het
+       kan een traag antwoord op een verzoek zijn dat wél is verwerkt.
+       Daarom eerst even navragen of de rij er staat. Pas als die er
+       níet staat, wordt de aanvraag bewaard voor een nieuwe poging;
+       anders zou dezelfde aanvraag twee keer in de sheet komen. */
+    var tijdig = String((fout && fout.message) || "") === "timeout";
+    toonStatus(tijdig
+      ? "De verbinding met de backend is traag. Even wachten, wij controleren of uw aanvraag is binnen..."
+      : "Geen verbinding met de backend. Even wachten, wij controleren of uw aanvraag is binnen...", "info");
+    controleerOfOntvangen(aanvraag.aanvraagId).then(function (binnen) {
+      if (binnen) {
+        try {
+          toonGeluktPagina({});
+          resetFormulier();
+        } catch (err) {
+          toonStatus("Uw aanvraag is in goede orde ontvangen. De bevestigingspagina kon niet getoond worden; ververs de pagina.", "info");
+        }
+        return;
+      }
+      aanvraag.wachtrijId = "av-" + Date.now() + "-" +
+        Math.random().toString(36).slice(2, 8);
+      bewaarWachtrij(haalWachtrij().concat([aanvraag]));
+      toonStatus("Geen verbinding: uw aanvraag is opgeslagen en wordt automatisch verzonden zodra u weer online bent. U krijgt dan ook de bevestiging te zien.", "info");
+    });
   });
 }
 
