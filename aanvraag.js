@@ -621,9 +621,11 @@ function toonGeluktPagina(antwoord) {
   if (duplicaat) { duplicaat.hidden = !isDuplicaat; }
   if (isDuplicaat) {
     vulBetaalgegevensIn();
-    /* De handmatige route meteen open: wie niet wil wachten tot de
-       iDEAL-link binnen is, kan direct uit de voeten. */
-    zetHandmatigBlok(true);
+    /* De QR-code en de handmatige betaalgegevens staan uit: de
+       iDEAL-link is er nu in hetzelfde verzoek, en er is een knop om
+       ze alsnog te tonen. Alleen als de link niet komt, gaan ze vanzelf
+       open (zie vraagBetaallinkOp). */
+    zetHandmatigBlok(false);
     toonBetaallink(antwoord);
   }
   if (sectie && sectie.scrollIntoView) { sectie.scrollIntoView(); }
