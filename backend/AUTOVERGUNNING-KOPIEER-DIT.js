@@ -923,10 +923,32 @@ function doGet(e) {
          terug of de rij nieuw is weggeschreven of al bestond. Dat is
          het enige bewijs dat de dubbelcheck werkt. */
       var geschreven = schrijfAanvraagRij(uit.aanvraag);
-      return jsonpAntwoord(params["callback"], {
-        ok: true,
-        alBinnen: geschreven.alBinnen === true
-      });
+      var antwoord = { ok: true, alBinnen: geschreven.alBinnen === true };
+
+      /* De betaallink in ditzelfde verzoek meesturen (alleen bij een
+         duplicaat). Het ophalen scheelt de pagina een tweede aanroep,
+         en per aanroep gaat bij dit webapp makkelijk twintig tot
+         zestig seconden over voordat het antwoord er is. Als het
+         lukken van de betaling de aanvraag zou blokkeren, staat de rij
+         er niet: daarom alles in een eigen try, waarbij het ontbreken
+         van de link alleen betekent dat de pagina hem alsnog apart
+         ophaalt. */
+      if (isDuplicaat(uit.aanvraag)) {
+        var refLink = String(uit.aanvraag.betaalReferentie ||
+          uit.aanvraag.aanvraagId || "").trim();
+        if (refLink) {
+          try {
+            var betaalNu = haalOfMaakBetaallink(refLink, false);
+            if (betaalNu && betaalNu.url) {
+              antwoord.betaallink = String(betaalNu.url);
+            }
+          } catch (foutLink) {
+            Logger.log("betaallink bij opslaan mislukt: " + foutMelding(foutLink));
+          }
+        }
+      }
+
+      return jsonpAntwoord(params["callback"], antwoord);
     } catch (foutSchrijf) {
       var reden = foutMelding(foutSchrijf);
       Logger.log("aanvraag opslaan mislukt: " + reden);

@@ -25,10 +25,9 @@ var laatsteSoortAanvraag = "";
 var laatsteOvv = "";
 var laatsteRef = "";
 var laatsteMollieUrl = "";
-/* De betaallink wordt al náást het versturen opgehaald. Dit
-   onthoudt die belofte zodat de bevestigingpagina hem niet nog een
-   keer hoeft op te vragen (en dus geen tweede order bij Mollie
-   maakt). */
+/* Onthoudt de lopende ophalen-actie, zodat twee keer naar de link
+   vragen (bijvoorbeeld bij een dubbele poging) niet twee orders bij
+   Mollie maakt. */
 var betaallinkBelofte = null;
 var betaallinkBelofteRef = "";
 
@@ -187,17 +186,17 @@ function toonKnopNogNietKlaar() {
   knop.setAttribute("aria-disabled", "true");
 }
 
-/* Toont de betaalknop. Het antwoord op het versturen van de aanvraag
-   bevat de iDEAL-link bewust niet: het opslaan van de aanvraag mag niet
-   wachten op Mollie. De link wordt daarom al náást het versturen
-   opgehaald en is er soms al als deze pagina verschijnt. */
+/* Toont de betaalknop. Bij een duplicaat stuurt de backend de
+   iDEAL-link mee in het antwoord van het versturen, zodat er maar één
+   aanroep nodig is. Ontbreekt die (oudere backend, of een aanroep die
+   vastliep), dan wordt de link hier alsnog opgehaald. */
 function toonBetaallink(antwoord) {
   var url = String((antwoord && antwoord.betaallink) || "");
   if (url) {
     zetMollieKnop(url, "");
     return;
   }
-  /* Al opgehaald tijdens het versturen: niets meer te doen. */
+  /* De knop is al van een eerdere ophalen-actie gevuld. */
   var knop = document.getElementById("mollieKnop");
   var klaar = knop ? String(knop.getAttribute("href") || "") : "";
   if (klaar && klaar !== "#") {
@@ -236,21 +235,10 @@ function haalBetaallink(nieuw) {
   return poging(0);
 }
 
-/* Start het ophalen zodra de referentie bekend is, dus náást het
-   versturen in plaats van erna. Scheelt de volledige laadtijd van de
-   backend op het moment dat de bevestigingpagina verschijnt. */
-function startBetaallinkVooraf() {
-  if (!laatsteRef || !BACKEND_URL) { return; }
-  if (laatsteSoortAanvraag !== "duplicaat") { return; }
-  if (betaallinkBelofte && betaallinkBelofteRef === laatsteRef) { return; }
-  betaallinkBelofteRef = laatsteRef;
-  betaallinkBelofte = haalBetaallink(false);
-  /* De foutafhandeling gebeurt pas als de knop getoond wordt; hier
-     alleen voorkomen dat de belofte onbehandeld blijft. */
-  betaallinkBelofte.catch(function () {});
-}
-
-/* Haalt de iDEAL-betaallink op en toont de grote betaalknop. */
+/* Haalt de iDEAL-betaallink op en toont de grote betaalknop.
+   In de gewone route zit de link al in het antwoord van het versturen;
+   dit is de vangnet-route als die ontbreekt (oudere backend) of als de
+   knop "nieuwe link" wordt gebruikt. */
 function vraagBetaallinkOp(nieuw) {
   var ref = laatsteRef || haalRefOp();
   if (!ref || !BACKEND_URL) { return Promise.resolve(); }
@@ -390,16 +378,21 @@ function maakAanvraagId() {
 /* Staat er al een rij met dit id in de spreadsheet? Eén smalle lezing op
    de referentiekolom, dus snel. Twee pogingen omdat een gewoon
    verbindingsprobleem ook hier even op moet winnen. */
-function controleerOfOntvangen(id) {
+function controleerOfOntvangen(id, pogingen, timeoutMs) {
   if (!id) { return Promise.resolve(false); }
-  /* Drie pogingen: deze controle beslist of een aanvraag al binnen is,
-     en een 404 van de webapp zou anders ten onrechte betekenen dat
-     de aanvraag nogmaals de wachtrij in gaat. */
+  /* Standaard drie pogingen, maar de aanroep na een mislukte
+     verzending gebruikt er bewust maar één met een korte grens: deze
+     controle is een versnelling, geen voorwaarde. De backend kijkt bij
+     het opslaan zelf of de rij al bestaat, dus bij twijfel gewoon
+     opnieuw versturen. Drie keer veertig seconden hier zou het totale
+     wachten op de trage 404's van de webapp alleen maar oplopen. */
+  var maxPogingen = (typeof pogingen === "number" && pogingen > 0) ? pogingen : 3;
+  var limiet = timeoutMs || VERZEND_TIMEOUT_MS;
   function vraag(poging) {
-    return backendJsonp("bekend", "ref=" + encodeURIComponent(id), VERZEND_TIMEOUT_MS).then(function (antwoord) {
+    return backendJsonp("bekend", "ref=" + encodeURIComponent(id), limiet).then(function (antwoord) {
       return !!(antwoord && antwoord.gevonden);
     }).catch(function () {
-      if (poging < 2) {
+      if (poging < maxPogingen - 1) {
         return wacht(1500).then(function () { return vraag(poging + 1); });
       }
       return false;
@@ -700,9 +693,12 @@ function verstuurAanvraag(aanvraag) {
     return postNaarBackend(aanvraag).catch(function (fout) {
       if (nummer >= VERZEND_POGINGEN - 1) { throw fout; }
       /* Een 404 van de webapp komt meestal als de rij wél al is
-         weggeschreven. Eerst even kijken: dat scheelt twee volledige
-         rondes van twintig seconden of langer. */
-      return controleerOfOntvangen(aanvraag.aanvraagId).then(function (binnen) {
+         weggeschreven. Eén snelle kijk scheelt twee volledige rondes
+         van twintig seconden of langer. Eén poging met een korte
+         grens: als die controle zelf ook een 404 krijgt, is opnieuw
+         versturen gewoon veilig — de backend houdt zelf bij of de rij
+         al bestaat. */
+      return controleerOfOntvangen(aanvraag.aanvraagId, 1, 20000).then(function (binnen) {
         if (binnen) { return { ok: true, alBinnen: true }; }
         return wacht(1200).then(function () {
           toonStatus("Verbinding mislukt, opnieuw proberen (" +
@@ -740,7 +736,6 @@ function verstuurWachtrij() {
       laatsteRef = item.betaalReferentie || "";
       bewaarRef(laatsteRef);
       laatsteOvv = maakOvv(item);
-      startBetaallinkVooraf();
       laatsteAntwoord = antwoord;
       weghalen(item);
       return 1;
@@ -754,7 +749,6 @@ function verstuurWachtrij() {
           laatsteRef = item.betaalReferentie || "";
           bewaarRef(laatsteRef);
           laatsteOvv = maakOvv(item);
-          startBetaallinkVooraf();
           laatsteAntwoord = laatsteAntwoord || {};
           weghalen(item);
           return 1;
@@ -920,9 +914,8 @@ function verstuurFormulier(e) {
   }
   laatsteSoortAanvraag = aanvraag.soortAanvraag;
   laatsteOvv = maakOvv(aanvraag);
-  /* De betaallink loopt náást het versturen: die wachttijd telt dan
-     niet meer op bij die van het opslaan. */
-  startBetaallinkVooraf();
+  /* De betaallink komt, als het meezit, in hetzelfde antwoord mee:
+     één aanroep in plaats van twee. Zie act=aanvraag in de backend. */
 
   if (!BACKEND_URL) {
     aanvraag.wachtrijId = "av-" + Date.now() + "-" +
