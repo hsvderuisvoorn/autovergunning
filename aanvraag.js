@@ -25,6 +25,12 @@ var laatsteSoortAanvraag = "";
 var laatsteOvv = "";
 var laatsteRef = "";
 var laatsteMollieUrl = "";
+/* De betaallink wordt al náást het versturen opgehaald. Dit
+   onthoudt die belofte zodat de bevestigingpagina hem niet nog een
+   keer hoeft op te vragen (en dus geen tweede order bij Mollie
+   maakt). */
+var betaallinkBelofte = null;
+var betaallinkBelofteRef = "";
 
 /* Apps Script start koud op en doet zijn sheetbewerkingen in losse
    rondgangen. Eerdelijk was hier 20 seconden de grens, waardoor een
@@ -168,23 +174,34 @@ function zetMollieKnop(url, status) {
 function toonKnopNogNietKlaar() {
   var blok = document.getElementById("mollieBlok");
   var knop = document.getElementById("mollieKnop");
-  if (blok && haalRefOp()) {
+  if (blok && (laatsteRef || haalRefOp())) {
     blok.hidden = false;
     blok.style.display = "block";
   }
-  if (knop) {
-    knop.classList.add("niet-klaar");
-    knop.setAttribute("aria-disabled", "true");
-  }
+  if (!knop) { return; }
+  /* De link kan al binnen zijn, omdat hij tijdens het versturen werd
+     opgehaald. Dan mag de knop niet opnieuw onklaar worden gemaakt. */
+  var huidig = knop.getAttribute("href");
+  if (huidig && huidig !== "#") { return; }
+  knop.classList.add("niet-klaar");
+  knop.setAttribute("aria-disabled", "true");
 }
 
 /* Toont de betaalknop. Het antwoord op het versturen van de aanvraag
    bevat de iDEAL-link bewust niet: het opslaan van de aanvraag mag niet
-   wachten op Mollie, dus de link wordt hier apart opgehaald. */
+   wachten op Mollie. De link wordt daarom al náást het versturen
+   opgehaald en is er soms al als deze pagina verschijnt. */
 function toonBetaallink(antwoord) {
   var url = String((antwoord && antwoord.betaallink) || "");
   if (url) {
     zetMollieKnop(url, "");
+    return;
+  }
+  /* Al opgehaald tijdens het versturen: niets meer te doen. */
+  var knop = document.getElementById("mollieKnop");
+  var klaar = knop ? String(knop.getAttribute("href") || "") : "";
+  if (klaar && klaar !== "#") {
+    zetMollieKnop(klaar, "");
     return;
   }
   /* toon meteen dat er aan gewerkt wordt, anders lijkt het stil */
@@ -193,20 +210,21 @@ function toonBetaallink(antwoord) {
   vraagBetaallinkOp(false);
 }
 
-/* Haalt de iDEAL-betaallink op en toont de grote betaalknop. */
-function vraagBetaallinkOp(nieuw) {
+/* Haalt de iDEAL-betaallink op bij de backend, zonder de UI aan te
+   raken. Extra ruimte: hier maakt de backend een order aan bij Mollie,
+   en gemeten is dat de webapp zelf soms al dertig seconden duurt. */
+function haalBetaallink(nieuw) {
   var ref = laatsteRef || haalRefOp();
-  if (!ref || !BACKEND_URL) { return; }
-  toonMollieStatus(nieuw ? "Een nieuwe betaallink wordt aangemaakt..." : "Betaallink ophalen...");
-  /* Extra ruimte: hier maakt de backend een order aan bij Mollie, en
-     gemeten is dat de webapp zelf soms al dertig seconden duurt. */
+  if (!ref || !BACKEND_URL) {
+    return Promise.reject(new Error("geen referentie of backend"));
+  }
   function poging(nummer) {
     return backendJsonp("betaallink",
       "ref=" + encodeURIComponent(ref) + "&nieuw=" + (nieuw ? "1" : "0"),
       90000).catch(function (fout) {
       /* Zelfde reden als bij het versturen van de aanvraag: de webapp
          geeft regelmatig een 404 of duurt lang. Opnieuw proberen, want
-         een aanvraager die een lege pagina ziet denkt tot zover niet
+         een aanvrager die een lege pagina ziet denkt tot zover niet
          aan de betaling. */
       if (nummer < 2) {
         toonMollieStatus("Verbinding mislukt, opnieuw proberen...");
@@ -215,8 +233,38 @@ function vraagBetaallinkOp(nieuw) {
       throw fout;
     });
   }
+  return poging(0);
+}
+
+/* Start het ophalen zodra de referentie bekend is, dus náást het
+   versturen in plaats van erna. Scheelt de volledige laadtijd van de
+   backend op het moment dat de bevestigingpagina verschijnt. */
+function startBetaallinkVooraf() {
+  if (!laatsteRef || !BACKEND_URL) { return; }
+  if (laatsteSoortAanvraag !== "duplicaat") { return; }
+  if (betaallinkBelofte && betaallinkBelofteRef === laatsteRef) { return; }
+  betaallinkBelofteRef = laatsteRef;
+  betaallinkBelofte = haalBetaallink(false);
+  /* De foutafhandeling gebeurt pas als de knop getoond wordt; hier
+     alleen voorkomen dat de belofte onbehandeld blijft. */
+  betaallinkBelofte.catch(function () {});
+}
+
+/* Haalt de iDEAL-betaallink op en toont de grote betaalknop. */
+function vraagBetaallinkOp(nieuw) {
+  var ref = laatsteRef || haalRefOp();
+  if (!ref || !BACKEND_URL) { return Promise.resolve(); }
+  toonMollieStatus(nieuw ? "Een nieuwe betaallink wordt aangemaakt..." : "Betaallink ophalen...");
   toonKnopNogNietKlaar();
-  return poging(0)
+  /* Dezelfde ophalen-actie hergebruiken als die al liep: één order
+     bij Mollie in plaats van twee. Nieuwe links gaan altijd apart. */
+  var reuse = !nieuw && betaallinkBelofte && betaallinkBelofteRef === ref;
+  var belofte = reuse ? betaallinkBelofte : haalBetaallink(nieuw);
+  if (!nieuw) {
+    betaallinkBelofte = belofte;
+    betaallinkBelofteRef = ref;
+  }
+  return belofte
     .then(function (data) {
       var url = data && data.url ? data.url : "";
       if (!url) {
@@ -230,6 +278,8 @@ function vraagBetaallinkOp(nieuw) {
       zetMollieKnop(url, data.nieuw ? "Nieuwe betaallink aangemaakt." : "");
     })
     .catch(function (fout) {
+      /* Mislukt: volgende keer mag er een verse poging gedaan worden. */
+      if (!nieuw && betaallinkBelofte === belofte) { betaallinkBelofte = null; }
       /* De knop blijft staan, maar niet klikbaar, en er staat
          duidelijk waarom. Met de handmatige betaalgegevens kan de
          aanvrager in elk geval door. */
@@ -346,7 +396,7 @@ function controleerOfOntvangen(id) {
      en een 404 van de webapp zou anders ten onrechte betekenen dat
      de aanvraag nogmaals de wachtrij in gaat. */
   function vraag(poging) {
-    return backendJsonp("bekend", { ref: id }, VERZEND_TIMEOUT_MS).then(function (antwoord) {
+    return backendJsonp("bekend", "ref=" + encodeURIComponent(id), VERZEND_TIMEOUT_MS).then(function (antwoord) {
       return !!(antwoord && antwoord.gevonden);
     }).catch(function () {
       if (poging < 2) {
@@ -578,6 +628,9 @@ function toonGeluktPagina(antwoord) {
   if (duplicaat) { duplicaat.hidden = !isDuplicaat; }
   if (isDuplicaat) {
     vulBetaalgegevensIn();
+    /* De handmatige route meteen open: wie niet wil wachten tot de
+       iDEAL-link binnen is, kan direct uit de voeten. */
+    zetHandmatigBlok(true);
     toonBetaallink(antwoord);
   }
   if (sectie && sectie.scrollIntoView) { sectie.scrollIntoView(); }
@@ -646,10 +699,16 @@ function verstuurAanvraag(aanvraag) {
   function poging(nummer) {
     return postNaarBackend(aanvraag).catch(function (fout) {
       if (nummer >= VERZEND_POGINGEN - 1) { throw fout; }
-      return wacht(1200).then(function () {
-        toonStatus("Verbinding mislukt, opnieuw proberen (" +
-          (nummer + 2) + " van " + VERZEND_POGINGEN + ")...", "info");
-        return poging(nummer + 1);
+      /* Een 404 van de webapp komt meestal als de rij wél al is
+         weggeschreven. Eerst even kijken: dat scheelt twee volledige
+         rondes van twintig seconden of langer. */
+      return controleerOfOntvangen(aanvraag.aanvraagId).then(function (binnen) {
+        if (binnen) { return { ok: true, alBinnen: true }; }
+        return wacht(1200).then(function () {
+          toonStatus("Verbinding mislukt, opnieuw proberen (" +
+            (nummer + 2) + " van " + VERZEND_POGINGEN + ")...", "info");
+          return poging(nummer + 1);
+        });
       });
     });
   }
@@ -681,6 +740,7 @@ function verstuurWachtrij() {
       laatsteRef = item.betaalReferentie || "";
       bewaarRef(laatsteRef);
       laatsteOvv = maakOvv(item);
+      startBetaallinkVooraf();
       laatsteAntwoord = antwoord;
       weghalen(item);
       return 1;
@@ -694,6 +754,7 @@ function verstuurWachtrij() {
           laatsteRef = item.betaalReferentie || "";
           bewaarRef(laatsteRef);
           laatsteOvv = maakOvv(item);
+          startBetaallinkVooraf();
           laatsteAntwoord = laatsteAntwoord || {};
           weghalen(item);
           return 1;
@@ -859,6 +920,9 @@ function verstuurFormulier(e) {
   }
   laatsteSoortAanvraag = aanvraag.soortAanvraag;
   laatsteOvv = maakOvv(aanvraag);
+  /* De betaallink loopt náást het versturen: die wachttijd telt dan
+     niet meer op bij die van het opslaan. */
+  startBetaallinkVooraf();
 
   if (!BACKEND_URL) {
     aanvraag.wachtrijId = "av-" + Date.now() + "-" +
