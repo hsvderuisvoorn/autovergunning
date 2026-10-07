@@ -4,15 +4,21 @@
    ALGEMEEN: dit is het ene, schone bestand voor de backend.
    - Zet HET in het Apps Script-project dat gekoppeld zit aan de
      spreadsheet "Autovergunningen".
-   - De web-app slaat aanvragen op in het tabblad "Aanvragen" en
-     stuurt op datzelfde moment een meldingsmail naar
-     secretariaat@hsvderuisvoorn.nl: een aanvraag die via de website
-     binnenkomt is dus meteen in de mail terug te vinden. De
-     aanvrager merkt daar niets van - die ziet de bevestigingspagina.
-     Het losse project AANVRAAG-NOTIFICATIE (elke 5 minuten) hoeft
-     dus niet meer geinstalleerd te worden; staat hij wel, dan telt
-     hij alleen de rijen waarvan de meldingsmail is mislukt, want die
-     zet kolom T ("Mail verstuurd") op "ja".
+- De web-app slaat aanvragen op in het tabblad "Aanvragen" en
+  verstuurt daarbij twee mails:
+    1. een melding naar secretariaat@hsvderuisvoorn.nl, zodat een
+       aanvraag die via de website binnenkomt meteen in de mail
+       terug te vinden is;
+    2. een bevestiging naar het e-mailadres van de aanvrager (kolom
+       U, uit het formulier), met de referentie en wat er nu gebeurt.
+  De aanvrager merkt verder niets - die ziet de bevestigingspagina.
+  Het losse project AANVRAAG-NOTIFICATIE (elke 5 minuten) hoeft
+  dus niet meer geinstalleerd te worden; staat hij wel, dan telt
+  hij alleen de rijen waarvan de meldingsmail is mislukt, want die
+  zet kolom T ("Mail verstuurd") op "ja".
+  Twee mails per aanvraag betekent twee keer zo veel dagquota:
+  MailApp geeft 100 mails per dag voor dit project.
+
 
    HOE INSTALLEREN? (eenmalig, in 5 stappen)
    1. Maak op de Drive een spreadsheet aan en hernoem die naar
@@ -140,8 +146,11 @@ function schrijfAanvraagRij(json) {
     json.betaalReferentie   || json.aanvraagId || "", /* P referentie (duplicaat: betaal; nieuw: aanvraag-id) */
     "",                                             /* Q betaling gemeld (via knop)    */
     "",                                             /* R betaling gemeld op (tijdstip) */
-    ""                                              /* S betaald gecontroleerd (penningmeester) */
+    "",                                             /* S betaald gecontroleerd (penningmeester) */
+    "",                                             /* T mail verstuurd (wordt hierna gezet) */
+    json.emailAdres           || ""                  /* U e-mailadres aanvrager         */
   ];
+
   var nieuweRij = 0;
   try {
     blad.appendRow(rijWaarden);
@@ -181,9 +190,9 @@ function schrijfAanvraagRij(json) {
      zetten we kolom T ("Mail verstuurd") op "ja" - daarmee weet de
      losse notificatietimer (elke 5 minuten) dat hij deze rij kan
      overslaan. Lukt de mail niet, dan blijft kolom T leeg en kan die
-     timer alsnog als vangnet dienen. De kop van kolom T maken we
-     eenmalig aan, want de koppen A t/m S worden door dit project
-     gezet en T hoort daar niet bij. */
+     timer alsnog als vangnet dienen. De kop van kolom T staat er al
+     via koppelSpreadsheet; de vangnet-check eromheen dekt het geval
+     dat de sheet van vroeger alleen maar A t/m S had. */
   if (stuurOntvangstmelding(blad, rijWaarden)) {
     try {
       if (!String(blad.getRange(1, 20).getValue() || "").trim()) {
@@ -195,6 +204,10 @@ function schrijfAanvraagRij(json) {
         + foutMelding(foutMerk));
     }
   }
+
+  /* En de bevestiging naar de aanvrager zelf, op het e-mailadres uit
+     kolom U. Ook hier geldt: de aanvraag staat al, dus alleen loggen. */
+  stuurBevestigingsmail(rijWaarden);
 
   /* De iDEAL-link wordt hier NIET meer gemaakt. Een verzoek naar
      Mollie duurt merkbaar langer dan het wegschrijven van de rij en
@@ -230,6 +243,7 @@ function stuurOntvangstmelding(blad, rij) {
   regels.push("Datum aanvraag:      " + String(rij[0] || ""));
   regels.push("Soort:               " + (duplicaat ? "Duplicaat" : "Nieuw"));
   regels.push("Naam:                " + naam);
+  regels.push("E-mail aanvrager:    " + (String(rij[20] || "").trim() || "-"));
   regels.push("Geboortedatum:       " + String(rij[5] || ""));
   regels.push("Vispasnummer:        " + (String(rij[6] || "").trim() || "-"));
   regels.push("Invalidenkaart:      " + (String(rij[7] || "").trim() || "onbekend")
@@ -278,6 +292,76 @@ function meldingAdres() {
     return waarde.toLowerCase() === "nee" ? "" : waarde;
   }
   return "secretariaat@hsvderuisvoorn.nl";
+}
+
+/* ------------------------------------------------------------
+   Bevestigingsmail naar de aanvrager: laat weten dat de aanvraag is
+   ontvangen en wat er nu gebeurt. Het adres komt uit kolom U. Zonder
+   geldig adres wordt er niet gemaild - dat is geen fout, alleen geen
+   bevestiging. Faalt MailApp, dan wordt het gelogd: de aanvraag zelf
+   staat al in de sheet en de aanvrager ziet de bevestigingspagina.
+   ------------------------------------------------------------ */
+function stuurBevestigingsmail(rij) {
+  var adres = String(rij[20] || "").trim();
+  if (!adres) { return false; }
+  if (!geldigeEpostaam(adres)) {
+    Logger.log("bevestiging niet verstuurd: ongeldig e-mailadres '" + adres + "'");
+    return false;
+  }
+
+  var duplicaat = String(rij[1] || "").trim() === "duplicaat";
+  var naam = [rij[2], rij[3], rij[4]].join(" ")
+    .replace(/\s+/g, " ").trim();
+  var referentie = String(rij[15] || "").trim() || "-";
+  var regels = [];
+
+  regels.push("Beste " + (naam || "heer/mevrouw") + ",");
+  regels.push("");
+  regels.push(duplicaat
+    ? "Wij hebben uw aanvraag voor een duplicaat Autovergunning van Hengelsportvereniging De Ruisvoorn ontvangen."
+    : "Wij hebben uw aanvraag voor een Autovergunning van Hengelsportvereniging De Ruisvoorn in goede orde ontvangen.");
+  regels.push("");
+  regels.push("Soort aanvraag:   " + (duplicaat ? "duplicaat" : "nieuw"));
+  regels.push("Datum aanvraag:   " + String(rij[0] || ""));
+  regels.push("Referentie:       " + referentie);
+  regels.push("");
+  if (duplicaat) {
+    regels.push("De duplicaat kost €5. U kunt op de aanvraagpagina met iDEAL betalen, of het bedrag overmaken op:");
+    regels.push("");
+    regels.push("  rekeningnummer: NL09 RABO 0141 9769 50");
+    regels.push("  t.n.v.:         Hengelsportver. De Ruisvoorn");
+    regels.push("  bedrag:         €5,00");
+    regels.push("  o.v.v.:         " + referentie);
+    regels.push("");
+    regels.push("Na ontvangst van de betaling sturen wij de duplicaat zo snel mogelijk toe.");
+  } else {
+    regels.push("De definitieve toekenning wordt besloten door het bestuur op de eerstvolgende bestuursvergadering, op basis van het aantal beschikbare sleutels. De borg van €25 voor de sleutel wordt pas bij toekenning in rekening gebracht.");
+  }
+  regels.push("");
+  regels.push("Heeft u vragen? Antwoord op dit bericht of stuur een mail naar secretariaat@hsvderuisvoorn.nl.");
+  regels.push("");
+  regels.push("Met vriendelijke groet,");
+  regels.push("Hengelsportvereniging De Ruisvoorn");
+
+  var onderwerp = (duplicaat
+    ? "Ontvangen: uw aanvraag duplicaat Autovergunning"
+    : "Ontvangen: uw aanvraag Autovergunning")
+    + " (referentie " + referentie + ")";
+
+  try {
+    MailApp.sendEmail({ to: adres, subject: onderwerp, body: regels.join("\n") });
+    return true;
+  } catch (foutMail) {
+    Logger.log("bevestigingsmail naar " + adres + " niet verstuurd: "
+      + foutMelding(foutMail));
+    return false;
+  }
+}
+
+/* Een e-mailadres met tenminste iets@iets.tld. Bewust ruim: de
+   aanvrager, niet dit script, bepaalt wat een geldig adres is. */
+function geldigeEpostaam(adres) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(adres);
 }
 
 /* ------------------------------------------------------------
@@ -811,11 +895,13 @@ function fitKolombreedtes(blad, laatste) {
     16: 18,                                   /* P betaalreferentie compact        */
     17: 14,                                   /* Q betaling gemeld compact         */
     18: 20,                                   /* R betaling gemeld op compact      */
-    19: 20                                    /* S betaald gecontroleerd compact   */
+    19: 20,                                   /* S betaald gecontroleerd compact   */
+    20: 16,                                   /* T mail verstuurd compact          */
+    21: 32                                    /* U e-mailadres aanvrager           */
   };
   var limietNormaal = 45;
   var limietWrap = 30;
-  for (var c = 0; c < 19; c++) {
+  for (var c = 0; c < breed; c++) {
     var kolom = c + 1;
     var langste = String(kopRij[c] || "").length;
     for (var r = 0; r < waarden.length; r++) {
@@ -881,10 +967,11 @@ function kleurGegevensRij(blad, rij, rijWaarden) {
   blad.getRange(rij, 1, 1, breed).setBackgrounds([kleuren]);
 }
 
-/* De kolomkoppen van het tabblad "Aanvragen" (A t/m S).
+/* De kolomkoppen van het tabblad "Aanvragen" (A t/m U).
    Eén keer gedefinieerd, zodat het opslaan, het aanvullen en het
-   opmaken nooit uit elkaar kunnen lopen. Kolom T wordt door het
-   notificatiescript gebruikt voor "Mail verstuurd". */
+   opmaken nooit uit elkaar kunnen lopen. T ("Mail verstuurd") is de
+   merkkolom van de meldingsmail, U is het e-mailadres van de
+   aanvrager - waar de bevestiging naartoe gaat. */
 var KOPPEN = [
   "Datum aanvraag", "Soort aanvraag", "Voorletters", "Voornaam",
   "Achternaam", "Geboortedatum", "Vispasnummer", "Invalidenkaart",
@@ -892,7 +979,7 @@ var KOPPEN = [
   "Akkoord borg €25 sleutel", "Akkoord AVG",
   "Akkoord voorwaarden", "Ingediend op", "Akkoord €5 duplicaat",
   "Betaalreferentie", "Betaling gemeld", "Betaling gemeld op",
-  "Betaald gecontroleerd"
+  "Betaald gecontroleerd", "Mail verstuurd", "E-mailadres"
 ];
 
 /* ------------------------------------------------------------

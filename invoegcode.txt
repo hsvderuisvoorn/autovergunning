@@ -524,6 +524,12 @@
           <input type="text" id="vispasnummer" name="vispasnummer" autocomplete="off" required>
         </div>
 
+        <div class="veld-groep">
+          <label for="emailAdres">E-mailadres <span class="verplicht-ster">*</span></label>
+          <input type="email" id="emailAdres" name="emailAdres" autocomplete="email" placeholder="bijv. naam@voorbeeld.nl" required>
+          <p class="hulp-tekst">Op dit adres sturen wij een bevestiging dat uw aanvraag is ontvangen.</p>
+        </div>
+
       </div>
     </fieldset>
 
@@ -665,13 +671,15 @@
         <div class="betaal-meld-blok" id="betaalMeldBlok" hidden>
           <p class="betaal-titel">Bevestig uw betaling</p>
           <p><strong>Hebt u zelf overgemaakt?</strong> Dan moet u hier nog even bevestigen dat het geld is overgeboekt, zodat de club dat in het overzicht ziet en de duplicaat kan versturen.</p>
-          <p>Bent u via <strong>iDEAL</strong> betaald? Dan hoeft dit niet: u wordt na het betalen automatisch teruggegeven op deze pagina. Mollie stuurt u bovendien een e-mail als bevestiging van uw betaling.</p>
+          <p>Bent u via <strong>iDEAL</strong> betaald? Dan hoeft dit niet: u wordt na het betalen automatisch teruggegeven op deze pagina.</p>
           <p>De handmatige betaling moet <strong>binnen 3 dagen na het aanmelden</strong> zijn gedaan. Twijfelt u nog? Stuur dan een mail naar <a href="mailto:secretariaat@hsvderuisvoorn.nl">secretariaat@hsvderuisvoorn.nl</a> met uw betaalreferentie.</p>
           <button type="button" id="betaalGemeldBtn">Ik heb overgemaakt</button>
           <p id="betaalGemeldStatus" class="hulp-tekst" hidden></p>
           <p class="hulp-tekst">Uw betaalreferentie: <strong id="qrRef">&hellip;</strong> &mdash; vermeld deze bij vragen over uw betaling.</p>
         </div>
       </div>
+
+      <p id="bevestigingsMailTekst" class="hulp-tekst" hidden></p>
 
       <p>Heeft u vragen? Stuur die naar <a href="mailto:secretariaat@hsvderuisvoorn.nl">secretariaat@hsvderuisvoorn.nl</a>.</p>
     </div>
@@ -1018,8 +1026,7 @@ function controleerBetaalstatus() {
     if (knopSite) { knopSite.hidden = false; }
     if (tekst) {
       tekst.innerHTML = "Uw betaling van &euro;5 is ontvangen. Uw duplicaatvergunning " +
-        "wordt zo snel mogelijk voor u <strong>aangemaakt en verstuurd</strong>. " +
-        "U ontvangt van Mollie een bevestiging van uw betaling per e-mail.";
+        "wordt zo snel mogelijk voor u <strong>aangemaakt en verstuurd</strong>.";
     }
   }
 
@@ -1333,8 +1340,31 @@ function toonGeluktPagina(antwoord) {
     zetHandmatigBlok(false);
     toonBetaallink(antwoord);
   }
+  /* Laten zien op welk adres de backend de bevestiging heeft
+     gestuurd. De bevestiging zelf gaat vanuit de backend: als die niet
+     verstuurd kon worden, blijft de aanvraag gewoon binnen en staat
+     deze regel er alleen wat optimistisch bij. */
+  zetBevestigingsmailRegel();
   if (sectie && sectie.scrollIntoView) { sectie.scrollIntoView(); }
   window.scrollTo(0, 0);
+}
+
+/* De regel met het adres waarop de bevestigingsmail is gestuurd. */
+function zetBevestigingsmailRegel() {
+  var regel = document.getElementById("bevestigingsMailTekst");
+  var veld = document.getElementById("emailAdres");
+  var adres = veld ? String(veld.value || "").trim() : "";
+  if (!regel) { return; }
+  regel.textContent = "";
+  if (!adres) { regel.hidden = true; return; }
+  regel.appendChild(document.createTextNode(
+    "Wij sturen een bevestiging van deze aanvraag naar "));
+  var sterk = document.createElement("strong");
+  sterk.textContent = adres;
+  regel.appendChild(sterk);
+  regel.appendChild(document.createTextNode(
+    ". Niets ontvangen? Kijk dan even in uw ongewenste map."));
+  regel.hidden = false;
 }
 
 /* ------------------------------------------------------------
@@ -1508,6 +1538,7 @@ function verzamelAanvraag() {
     achternaam:      waarde("achternaam"),
     geboortedatum:   waarde("geboortedatum"),
     vispasnummer:    waarde("vispasnummer"),
+    emailAdres:      waarde("emailAdres"),
     invalidenkaart:  radioWaarde("invalidenkaart"),
     invalidenkaartNummer: waarde("invalidenkaartNummer"),
     borgAkkoord:     checkbox("borgAkkoord"),

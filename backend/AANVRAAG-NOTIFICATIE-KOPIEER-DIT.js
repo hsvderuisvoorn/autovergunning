@@ -171,7 +171,9 @@ function isBlijvendeFout(fout) {
    16 Q  betaling gemeld
    17 R  betaling gemeld op
    18 S  betaald gecontroleerd
-   19 T  mail verstuurd (deze kolom zet DIT project)            */
+   19 T  mail verstuurd (merkkolom: de backend zet hier "ja" als zijn
+         meldingsmail gelukt is; DIT project zet hem als vangnet)
+   20 U  e-mailadres van de aanvrager (backend; hier niet gebruikt)  */
 
 var MAILMARK_KOLOM = 19;   /* kolom T (20e) */
 

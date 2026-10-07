@@ -336,8 +336,7 @@ function controleerBetaalstatus() {
     if (knopSite) { knopSite.hidden = false; }
     if (tekst) {
       tekst.innerHTML = "Uw betaling van &euro;5 is ontvangen. Uw duplicaatvergunning " +
-        "wordt zo snel mogelijk voor u <strong>aangemaakt en verstuurd</strong>. " +
-        "U ontvangt van Mollie een bevestiging van uw betaling per e-mail.";
+        "wordt zo snel mogelijk voor u <strong>aangemaakt en verstuurd</strong>.";
     }
   }
 
@@ -651,8 +650,31 @@ function toonGeluktPagina(antwoord) {
     zetHandmatigBlok(false);
     toonBetaallink(antwoord);
   }
+  /* Laten zien op welk adres de backend de bevestiging heeft
+     gestuurd. De bevestiging zelf gaat vanuit de backend: als die niet
+     verstuurd kon worden, blijft de aanvraag gewoon binnen en staat
+     deze regel er alleen wat optimistisch bij. */
+  zetBevestigingsmailRegel();
   if (sectie && sectie.scrollIntoView) { sectie.scrollIntoView(); }
   window.scrollTo(0, 0);
+}
+
+/* De regel met het adres waarop de bevestigingsmail is gestuurd. */
+function zetBevestigingsmailRegel() {
+  var regel = document.getElementById("bevestigingsMailTekst");
+  var veld = document.getElementById("emailAdres");
+  var adres = veld ? String(veld.value || "").trim() : "";
+  if (!regel) { return; }
+  regel.textContent = "";
+  if (!adres) { regel.hidden = true; return; }
+  regel.appendChild(document.createTextNode(
+    "Wij sturen een bevestiging van deze aanvraag naar "));
+  var sterk = document.createElement("strong");
+  sterk.textContent = adres;
+  regel.appendChild(sterk);
+  regel.appendChild(document.createTextNode(
+    ". Niets ontvangen? Kijk dan even in uw ongewenste map."));
+  regel.hidden = false;
 }
 
 /* ------------------------------------------------------------
@@ -826,6 +848,7 @@ function verzamelAanvraag() {
     achternaam:      waarde("achternaam"),
     geboortedatum:   waarde("geboortedatum"),
     vispasnummer:    waarde("vispasnummer"),
+    emailAdres:      waarde("emailAdres"),
     invalidenkaart:  radioWaarde("invalidenkaart"),
     invalidenkaartNummer: waarde("invalidenkaartNummer"),
     borgAkkoord:     checkbox("borgAkkoord"),
