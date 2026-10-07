@@ -517,25 +517,6 @@ button#verstuurBtn { font-size: 1.05rem; padding: 0.8rem 1.7rem; }
   border-radius: 4px;
 }
 
-/* ================= VOET (als de footer van de site) ================= */
-.voet { margin-top: auto; }
-.voet-golven {
-  background: var(--achtergrond);
-  line-height: 0;
-  overflow: hidden;
-}
-.voet-golven svg { display: block; width: 100%; height: auto; }
-.voet-balk {
-  background: var(--primary-color);
-  color: var(--primary-color-contrast);
-  text-align: center;
-  padding: 1.1rem 1rem 1.5rem;
-  font-size: 0.9rem;
-}
-.voet-balk p { margin: 0.25rem 0; }
-.voet-balk a { color: var(--primary-color-contrast); text-decoration: underline; }
-.voet-balk a:hover { opacity: 0.85; }
-
 /* ================= KLEIN SCHERM ================= */
 @media (max-width: 576px) {
   html, body { font-size: 16px; }
