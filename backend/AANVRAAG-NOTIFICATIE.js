@@ -14,6 +14,13 @@
      naar de sheet, en zet in kolom T ("Mail verstuurd") een
      "ja" zodra de mail is verzonden.
 
+   DEZE TIMER IS (BIJNA) OVERBODIG: de backend (AUTOVERGUNNING-
+   KOPIEER-DIT) verstuurt de melding al direct op het moment dat de
+   aanvraag binnenkomt en zet dan zelf kolom T op "ja". Deze timer
+   haalt zo alleen nog de rijen op waarvan die eerste mail is
+   mislukt. Installeer hem dus gerust als vangnet; dubbele mails
+   kunnen niet ontstaan.
+
    ROBUUSTHEID (zelfde patroon als de opgave-timer)
    - LockService: voorkomt dat twee runs tegelijk draaien.
    - De hele run wordt bij een tijdelijke fout nog 1× opnieuw

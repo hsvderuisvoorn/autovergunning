@@ -4,11 +4,15 @@
    ALGEMEEN: dit is het ene, schone bestand voor de backend.
    - Zet HET in het Apps Script-project dat gekoppeld zit aan de
      spreadsheet "Autovergunningen".
-   - De web-app slaat uitsluitend aanvragen op in het tabblad
-     "Aanvragen". Mails over nieuwe aanvragen worden NIET vanuit
-     dit project verstuurd, maar vanuit het aparte account
-     deruisvoornhelden@gmail.com via AANVRAAG-NOTIFICATIE.js
-     (net als de meldingen van vangsten en opgaven).
+   - De web-app slaat aanvragen op in het tabblad "Aanvragen" en
+     stuurt op datzelfde moment een meldingsmail naar
+     secretariaat@hsvderuisvoorn.nl: een aanvraag die via de website
+     binnenkomt is dus meteen in de mail terug te vinden. De
+     aanvrager merkt daar niets van - die ziet de bevestigingspagina.
+     Het losse project AANVRAAG-NOTIFICATIE (elke 5 minuten) hoeft
+     dus niet meer geinstalleerd te worden; staat hij wel, dan telt
+     hij alleen de rijen waarvan de meldingsmail is mislukt, want die
+     zet kolom T ("Mail verstuurd") op "ja".
 
    HOE INSTALLEREN? (eenmalig, in 5 stappen)
    1. Maak op de Drive een spreadsheet aan en hernoem die naar
@@ -21,9 +25,17 @@
         waarde test_... (of live_...)
    4. Implementeren > Nieuwe implementatie > Web-app >
       Uitvoeren als: Ik  |  Toegang: Iedereen > Implementeren.
+      Bij de eerste run vraagt Apps Script toestemming: geef ook
+      "Sturen van e-mail namens jou" toestaan (anders kan de
+      melding niet verstuurd worden).
    5. Kopieer de /exec-URL en zet die in aanvraag.js
       (BACKEND_URL).
-   GEEN TRIGGER NODIG HIER: dit project verstuurt geen mail.
+      Optioneel: Script-eigenschap MELDING_ADRES met het adres
+      waar de melding heen moet. Staat hij niet, dan gaat de mail
+      naar secretariaat@hsvderuisvoorn.nl; zet je er "nee" in, dan
+      verstuurt het project helemaal geen mail.
+      GEEN TRIGGER NODIG HIER: de mail gaat mee met de aanvraag
+      zelf, niet op een klok.
 
    BETALEN MET iDEAL (Mollie) is optioneel: zonder MOLLIE_API_KEY
    werkt alleen de QR-code en het handmatig overmaken. Het tabblad
@@ -162,6 +174,28 @@ function schrijfAanvraagRij(json) {
     }
   }
 
+  /* De melding loopt achter het wegschrijven aan, zodat de rij er ook
+     is als de mail om wat voor reden dan ook niet verstuurd kan
+     worden. Een fout hier mag de aanvrager nooit bereiken: hij
+     verstuurt zijn aanvraag, niet de mail. Lukt de mail wel, dan
+     zetten we kolom T ("Mail verstuurd") op "ja" - daarmee weet de
+     losse notificatietimer (elke 5 minuten) dat hij deze rij kan
+     overslaan. Lukt de mail niet, dan blijft kolom T leeg en kan die
+     timer alsnog als vangnet dienen. De kop van kolom T maken we
+     eenmalig aan, want de koppen A t/m S worden door dit project
+     gezet en T hoort daar niet bij. */
+  if (stuurOntvangstmelding(blad, rijWaarden)) {
+    try {
+      if (!String(blad.getRange(1, 20).getValue() || "").trim()) {
+        blad.getRange(1, 20).setValue("Mail verstuurd");
+      }
+      blad.getRange(nieuweRij, 20).setValue("ja");
+    } catch (foutMerk) {
+      Logger.log("kolom T 'Mail verstuurd' zetten mislukt: "
+        + foutMelding(foutMerk));
+    }
+  }
+
   /* De iDEAL-link wordt hier NIET meer gemaakt. Een verzoek naar
      Mollie duurt merkbaar langer dan het wegschrijven van de rij en
      hing vroeger in dezelfde keten: als Mollie traag of onbereikbaar
@@ -169,6 +203,81 @@ function schrijfAanvraagRij(json) {
      vraagt de link daarna zelf op (?act=betaallink) en laat ondertussen
      alvast zien dat er aan gewerkt wordt. */
   return { ok: true };
+}
+
+/* ------------------------------------------------------------
+   Meldingsmail naar het secretariaat zodra een aanvraag is
+   opgeslagen. Geeft true terug als de mail verstuurd is, false als
+   er niet gemaild hoefde te worden (MELDING_ADRES op "nee") of als
+   het mislukte. Beide terugvalsituaties zijn bewust geen fout:
+   de aanvraag staat al in de sheet.
+   ------------------------------------------------------------ */
+function stuurOntvangstmelding(blad, rij) {
+  var adres = meldingAdres();
+  if (!adres) { return false; }
+
+  var soort = String(rij[1] || "").trim();
+  var duplicaat = soort === "duplicaat";
+  var naam = [rij[2], rij[3], rij[4]].join(" ")
+    .replace(/\s+/g, " ").trim() || "onbekende aanvrager";
+  var onderwerp = "Autovergunning "
+    + (duplicaat ? "duplicaat" : "aanvraag")
+    + " binnengekomen: " + naam;
+
+  var regels = [];
+  regels.push("Er is zojuist een aanvraag binnengekomen via het formulier op de website.");
+  regels.push("");
+  regels.push("Datum aanvraag:      " + String(rij[0] || ""));
+  regels.push("Soort:               " + (duplicaat ? "Duplicaat" : "Nieuw"));
+  regels.push("Naam:                " + naam);
+  regels.push("Geboortedatum:       " + String(rij[5] || ""));
+  regels.push("Vispasnummer:        " + (String(rij[6] || "").trim() || "-"));
+  regels.push("Invalidenkaart:      " + (String(rij[7] || "").trim() || "onbekend")
+    + (String(rij[8] || "").trim() ? " (" + String(rij[8]) + ")" : ""));
+  regels.push("Referentie:         " + (String(rij[15] || "").trim() || "-"));
+  regels.push("Akkoord voorwaarden: " + (String(rij[12] || "").trim() === "ja" ? "ja" : "nee"));
+  regels.push("Akkoord borg EUR25:  " + (String(rij[10] || "").trim() === "ja" ? "ja" : "nee"));
+  regels.push("Ingediend op:        " + String(rij[13] || ""));
+  if (duplicaat) {
+    regels.push("Akkoord kosten EUR5: " + (String(rij[14] || "").trim() === "ja" ? "ja" : "nee"));
+    regels.push("Betaling gemeld:     "
+      + (String(rij[16] || "").trim() === "ja"
+        ? "ja (" + String(rij[17] || "") + ")" : "nog niet"));
+  }
+
+  var url = "";
+  try { url = String(blad.getParent().getUrl() || ""); } catch (foutUrl) { url = ""; }
+  if (url) {
+    regels.push("");
+    regels.push("De aanvraag in de sheet:");
+    regels.push(url);
+  }
+
+  try {
+    MailApp.sendEmail({ to: adres, subject: onderwerp, body: regels.join("\n") });
+    return true;
+  } catch (foutMail) {
+    Logger.log("melding naar " + adres + " niet verstuurd: " + foutMelding(foutMail));
+    return false;
+  }
+}
+
+/* Het adres voor de meldingsmail. Script-eigenschap MELDING_ADRES
+   wint; niet gezet of leeg betekent het secretariaat, "nee" (het
+   maakt niet uit hoe die geschreven is) zet de melding uit. */
+function meldingAdres() {
+  var waarde = "";
+  try {
+    waarde = String(PropertiesService.getScriptProperties()
+      .getProperty("MELDING_ADRES") || "");
+  } catch (foutProp) {
+    Logger.log("MELDING_ADRES niet te lezen: " + foutMelding(foutProp));
+  }
+  waarde = waarde.trim();
+  if (waarde) {
+    return waarde.toLowerCase() === "nee" ? "" : waarde;
+  }
+  return "secretariaat@hsvderuisvoorn.nl";
 }
 
 /* ------------------------------------------------------------
