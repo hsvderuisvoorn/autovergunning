@@ -6,16 +6,29 @@
 <title>Aanvraag Autovergunning | HSV De Ruisvoorn</title>
 <meta name="description" content="Vraag een Autovergunning of een duplicaat aan bij HSV De Ruisvoorn. Bij een eerste aanvraag is een invalidenkaart minimaal verplicht. Werkt ook offline: de aanvraag wordt bewaard en automatisch verzonden.">
 <link rel="icon" href="./logo.png" type="image/png">
-<meta name="theme-color" content="#1b5e20">
+<meta name="theme-color" content="#124f76">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./style.css?v=dev">
 </head>
 <body>
 <header class="kop-balk">
+  <a class="kop-merk" href="https://hsvderuisvoorn.nl" title="Terug naar hsvderuisvoorn.nl">
+    <img src="./logo.png" alt="HSV De Ruisvoorn" class="kop-logo">
+  </a>
   <div class="kop-inner">
-    <h1>Aanvraag Autovergunning <span>HSV De Ruisvoorn · voor een nieuwe of duplicaat Autovergunning</span></h1>
+    <h1>Aanvraag Autovergunning <span>HSV de Ruisvoorn Helden &mdash; nieuwe aanvraag of duplicaat</span></h1>
   </div>
-  <img src="./logo.png" alt="HSV De Ruisvoorn logo" class="kop-logo">
 </header>
+
+<div class="golf-band" aria-hidden="true">
+  <svg viewBox="0 0 1920 200" xmlns="http://www.w3.org/2000/svg" version="1.1" preserveAspectRatio="none">
+    <path d="M0 158L53.3 153C106.7 148 213.3 138 320 137.5C426.7 137 533.3 146 640 150.7C746.7 155.3 853.3 155.7 960 152.2C1066.7 148.7 1173.3 141.3 1280 144.3C1386.7 147.3 1493.3 160.7 1600 157C1706.7 153.3 1813.3 132.7 1866.7 122.3L1920 112L1920 0L1866.7 0C1813.3 0 1706.7 0 1600 0C1493.3 0 1386.7 0 1280 0C1173.3 0 1066.7 0 960 0C853.3 0 746.7 0 640 0C533.3 0 426.7 0 320 0C213.3 0 106.7 0 53.3 0L0 0Z" style="fill: var(--primary-color); fill-opacity: 0.2;"></path>
+    <path d="M0 97L53.3 100.7C106.7 104.3 213.3 111.7 320 113.7C426.7 115.7 533.3 112.3 640 112.2C746.7 112 853.3 115 960 114.5C1066.7 114 1173.3 110 1280 103C1386.7 96 1493.3 86 1600 79C1706.7 72 1813.3 68 1866.7 66L1920 64L1920 0L1866.7 0C1813.3 0 1706.7 0 1600 0C1493.3 0 1386.7 0 1280 0C1173.3 0 1066.7 0 960 0C853.3 0 746.7 0 640 0C533.3 0 426.7 0 320 0C213.3 0 106.7 0 53.3 0L0 0Z" style="fill: var(--primary-color); fill-opacity: 0.6;"></path>
+    <path d="M0 71L53.3 67.3C106.7 63.7 213.3 56.3 320 57.7C426.7 59 533.3 69 640 69.3C746.7 69.7 853.3 60.3 960 57.3C1066.7 54.3 1173.3 57.7 1280 59.3C1386.7 61 1493.3 61 1600 56.7C1706.7 52.3 1813.3 43.7 1866.7 39.3L1920 35L1920 0L1866.7 0C1813.3 0 1706.7 0 1600 0C1493.3 0 1386.7 0 1280 0C1173.3 0 1066.7 0 960 0C853.3 0 746.7 0 640 0C533.3 0 426.7 0 320 0C213.3 0 106.7 0 53.3 0L0 0Z" style="fill: var(--primary-color); fill-opacity: 1;"></path>
+  </svg>
+</div>
 
 <main class="inhoud">
   <section class="intro-blok">
@@ -25,9 +38,15 @@
   </section>
 
   <section id="terugVanBetaling" class="terug-blok" hidden>
-    <p class="betaal-titel">Terug van het betalen</p>
-    <p id="terugTekst">Wij controleren uw betaling. Dit kan enkele seconden duren.</p>
-    <button type="button" id="terugStatusKnop">Controleer nu</button>
+    <span class="terug-icoon" id="terugIcoon" aria-hidden="true"></span>
+    <div class="terug-inhoud">
+      <p class="betaal-titel" id="terugTitel">Terug van het betalen</p>
+      <p id="terugTekst">Wij controleren uw betaling. Dit kan enkele seconden duren.</p>
+      <p class="terug-acties">
+        <button type="button" id="terugStatusKnop">Controleer nu</button>
+        <a id="terugNaarSite" class="knop-secundair" href="https://hsvderuisvoorn.nl" hidden>Terug naar de website</a>
+      </p>
+    </div>
   </section>
 
   <form id="aanvraagForm" novalidate>
@@ -245,7 +264,21 @@
 </main>
 
 <footer class="voet">
-  <p>&copy; HSV De Ruisvoorn &mdash; Autovergunning</p>
+  <div class="voet-golven" aria-hidden="true">
+    <svg viewBox="0 0 2400 200" xmlns="http://www.w3.org/2000/svg" version="1.1" preserveAspectRatio="none">
+      <path d="M0 73L40 76.3C80 79.7 160 86.3 240 92C320 97.7 400 102.3 480 107.3C560 112.3 640 117.7 720 115C800 112.3 880 101.7 960 99.3C1040 97 1120 103 1200 107C1280 111 1360 113 1440 113.7C1520 114.3 1600 113.7 1680 112.3C1760 111 1840 109 1920 103.7C2000 98.3 2080 89.7 2160 89.7C2240 89.7 2320 98.3 2360 102.7L2400 107L2400 65L2360 61.3C2320 57.7 2240 50.3 2160 47.3C2080 44.3 2000 45.7 1920 48.3C1840 51 1760 55 1680 61C1600 67 1520 75 1440 78.3C1360 81.7 1280 80.3 1200 75.3C1120 70.3 1040 61.7 960 59.3C880 57 800 61 720 64C640 67 560 69 480 68.3C400 67.7 320 64.3 240 58.7C160 53 80 45 40 41L0 37Z" style="fill: var(--primary-color); fill-opacity: 0.2;"></path>
+      <path d="M0 113L40 116.7C80 120.3 160 127.7 240 130C320 132.3 400 129.7 480 132.3C560 135 640 143 720 144.3C800 145.7 880 140.3 960 139.7C1040 139 1120 143 1200 146.3C1280 149.7 1360 152.3 1440 154C1520 155.7 1600 156.3 1680 153C1760 149.7 1840 142.3 1920 135C2000 127.7 2080 120.3 2160 119.7C2240 119 2320 125 2360 128L2400 131L2400 105L2360 100.7C2320 96.3 2240 87.7 2160 87.7C2080 87.7 2000 96.3 1920 101.7C1840 107 1760 109 1680 110.3C1600 111.7 1520 112.3 1440 111.7C1360 111 1280 109 1200 105C1120 101 1040 95 960 97.3C880 99.7 800 110.3 720 113C640 115.7 560 110.3 480 105.3C400 100.3 320 95.7 240 90C160 84.3 80 77.7 40 74.3L0 71Z" style="fill: var(--primary-color); fill-opacity: 0.6;"></path>
+      <path d="M0 201L40 201C80 201 160 201 240 201C320 201 400 201 480 201C560 201 640 201 720 201C800 201 880 201 960 201C1040 201 1120 201 1200 201C1280 201 1360 201 1440 201C1520 201 1600 201 1680 201C1760 201 1840 201 1920 201C2000 201 2080 201 2160 201C2240 201 2320 201 2360 201L2400 201L2400 129L2360 126C2320 123 2240 117 2160 117.7C2080 118.3 2000 125.7 1920 133C1840 140.3 1760 147.7 1680 151C1600 154.3 1520 153.7 1440 152C1360 150.3 1280 147.7 1200 144.3C1120 141 1040 137 960 137.7C880 138.3 800 143.7 720 142.3C640 141 560 133 480 130.3C400 127.7 320 130.3 240 128C160 125.7 80 118.3 40 114.7L0 111Z" style="fill: var(--primary-color); fill-opacity: 1;"></path>
+    </svg>
+  </div>
+  <div class="voet-balk">
+    <p>&copy; HSV de Ruisvoorn Helden &mdash; Aanvraag Autovergunning</p>
+    <p>
+      <a href="https://hsvderuisvoorn.nl">hsvderuisvoorn.nl</a> &nbsp;|&nbsp;
+      <a href="https://hsvderuisvoorn.nl/contact">Contact</a> &nbsp;|&nbsp;
+      <a href="mailto:secretariaat@hsvderuisvoorn.nl">secretariaat@hsvderuisvoorn.nl</a>
+    </p>
+  </div>
 </footer>
 
 <script src="./aanvraag.js?v=dev" defer></script>

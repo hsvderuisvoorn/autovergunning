@@ -297,29 +297,56 @@ var TERUG_INTERVAL = 2500;
 function controleerBetaalstatus() {
   var sectie = document.getElementById("terugVanBetaling");
   var tekst = document.getElementById("terugTekst");
+  var titel = document.getElementById("terugTitel");
+  var icoon = document.getElementById("terugIcoon");
+  var knop = document.getElementById("terugStatusKnop");
+  var knopSite = document.getElementById("terugNaarSite");
   var ref = haalRefOp();
   if (!sectie || !ref || !BACKEND_URL) { return; }
   var params = new URLSearchParams(window.location.search);
   if (params.get("betaald") !== "1") { return; }
   sectie.hidden = false;
-  sectie.style.display = "block";
+  sectie.style.display = "flex";
+  sectie.classList.remove("betaald");
+  if (titel) { titel.textContent = "Terug van het betalen"; }
+  if (icoon) { icoon.classList.remove("gedaan", "stop"); icoon.textContent = ""; }
+  if (knop) { knop.hidden = false; knop.style.display = ""; }
+  if (knopSite) { knopSite.hidden = true; }
   var form = document.getElementById("aanvraagForm");
   if (form) { form.hidden = true; form.style.display = "none"; }
   /* 'Nieuwe betaallink' in de slottekst: die link wordt pas in de
      tekst gezet als het automatisch controleren niets opleverde. */
   function koppelOpnieuwKnop() {
-    var knop = document.getElementById("mollieOpnieuw");
-    if (knop) {
-      knop.addEventListener("click", function (e) {
+    var opnieuwKnop = document.getElementById("mollieOpnieuw");
+    if (opnieuwKnop) {
+      opnieuwKnop.addEventListener("click", function (e) {
         e.preventDefault();
         vraagBetaallinkOp(true);
       });
     }
   }
 
+  function toonGelukt() {
+    /* De betaling is binnen: geen knop meer nodig, wel een vinkje en
+       de boodschap dat de vergunning gemaakt en verstuurd wordt. */
+    sectie.classList.add("betaald");
+    if (titel) { titel.textContent = "Betaling geslaagd"; }
+    if (icoon) { icoon.classList.add("gedaan"); icoon.textContent = "\u2713"; }
+    if (knop) { knop.hidden = true; knop.style.display = "none"; }
+    if (knopSite) { knopSite.hidden = false; }
+    if (tekst) {
+      tekst.innerHTML = "Uw betaling van &euro;5 is ontvangen. Uw duplicaatvergunning " +
+        "wordt zo snel mogelijk voor u <strong>aangemaakt en verstuurd</strong>. " +
+        "U ontvangt van Mollie een bevestiging van uw betaling per e-mail.";
+    }
+  }
+
   var poging = 0;
   function opnieuw(wachten) {
     if (poging >= TERUG_POGINGEN) {
+      /* Klaar met controleren zonder resultaat: de draaicirkel stopt,
+         zodat niet eeuwig lijkt alsof het nog bezig is. */
+      if (icoon) { icoon.classList.add("stop"); icoon.textContent = "?"; }
       if (tekst) {
         tekst.innerHTML = "Wij hebben uw betaling nog niet binnen. Het kan zijn dat uw bank het nog verwerkt. Kies <em>Controleer nu</em> om het opnieuw te proberen. Is de betaling niet gelukt? Vraag dan <a href=\"#\" id=\"mollieOpnieuw\">een nieuwe betaallink</a> of mail ons uw betaalreferentie.";
         koppelOpnieuwKnop();
@@ -339,11 +366,7 @@ function controleerBetaalstatus() {
       .then(function (data) {
         var status = data && data.status ? String(data.status) : "";
         if (status === "paid" || status === "authorized") {
-          if (tekst) {
-            tekst.innerHTML = "Uw betaling van &euro;5 is ontvangen. Uw aanvraag voor een duplicaat is daarmee afgerond; u ontvangt de duplicaat zo snel mogelijk per post.";
-          }
-          var klaar = document.getElementById("terugStatusKnop");
-          if (klaar) { klaar.hidden = true; klaar.style.display = "none"; }
+          toonGelukt();
           return;
         }
         if (tekst) {
@@ -514,7 +537,7 @@ function verstuurBetaalMelding() {
   toonMeldStatus("Bevestiging wordt verstuurd...", "");
   postNaarBackend({ type: "betaling-gemeld", betaalReferentie: laatsteRef })
     .then(function () {
-      toonMeldStatus("Bedankt! Uw betaling is doorgegeven; de club verwerkt het nu en stuurt de duplicaat zo snel mogelijk toe.", "ok");
+      toonMeldStatus("Bedankt! Wij hebben uw betaling gemeld. Na controle wordt uw duplicaatvergunning zo snel mogelijk voor u aangemaakt en verstuurd.", "ok");
     }).catch(function () {
       if (btn) { btn.disabled = false; }
       toonMeldStatus("Geen verbinding. Probeer het zo meteen nog eens of mail secretariaat@hsvderuisvoorn.nl met uw betaalreferentie " + laatsteRef + ".", "fout");
