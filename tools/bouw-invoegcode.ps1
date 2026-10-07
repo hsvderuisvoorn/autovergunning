@@ -60,6 +60,8 @@ function Convert-Styles([string]$text) {
 $css = Get-Content -LiteralPath "$src\style.css" -Raw
 $css = [regex]::Replace($css, "(?s)/\*.*?\*/", "")
 $css = Convert-Styles $css
+# Ook de stijlregels van de vervallen golfband en voettekst niet meenemen.
+$css = [regex]::Replace($css, '(?m)^.*\.(golf-band|voet|voet-golven|voet-balk)[^{]*\{[^}]*\}\s*', "")
 $css = $css.Trim()
 
 # --- HTML: body-inhoud ---
@@ -69,6 +71,10 @@ $e = $html.LastIndexOf("</body>")
 $body = $html.Substring($b, $e - $b).Trim()
 $body = [regex]::Replace($body, '\s*<link rel="stylesheet" href="\./style\.css\?v=dev">', "")
 $body = [regex]::Replace($body, '\s*<script src="\./aanvraag\.js\?v=dev" defer></script>', "")
+# Op de eigen website staan de golfband onder de titel en de voettekst
+# van de losse pagina niet: die vervallen in het invoegblok.
+$body = [regex]::Replace($body, '(?s)\s*<div class="golf-band".*?</div>', "")
+$body = [regex]::Replace($body, '(?s)\s*<footer class="voet">.*?</footer>', "")
 $body = $body.Replace("./logo.png", "https://hsvderuisvoorn.github.io/autovergunning/logo.png")
 $cls = $p.TrimStart(".")
 $body = "<div class=`"$cls`">`n" + $body + "`n</div>"
