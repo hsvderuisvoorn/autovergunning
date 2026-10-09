@@ -1,0 +1,1458 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aanvraag Autovergunning | HSV De Ruisvoorn</title>
+<meta name="description" content="Vraag een Autovergunning of een duplicaat daarvan aan bij HSV De Ruisvoorn Helden. Bij een eerste aanvraag is een invalidenkaart minimaal verplicht.">
+<link rel="icon" href="https://hsvderuisvoorn.nl/favicon.ico">
+<meta name="theme-color" content="#124f76">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  
+  --primary-color:          #124f76;
+  --primary-color-contrast: #fff;
+  --primary-color-shade:    #0d3753;
+  --primary-color-tint:     #59849f;
+  --background-color:       #fff;
+  --text-color:             #0f0f0f;
+  --link-text-color:        #102142;
+  --border-radius:          8px;
+  --primary-font-family:    'Roboto', 'Segoe UI', system-ui, -apple-system, sans-serif;
+
+  
+  --achtergrond:   #f4f7fa;   
+  --wit:           #fff;
+  --vlak:          #e9f1f6;   
+  --rand:          #d8e1e8;
+  --tekst:         var(--text-color);
+  --tekst-zacht:   #56626d;
+  --fout:          #b3261e;
+  --ok:            #1b7d3a;
+  --info:          #0d47a1;
+  --kaartschaduw:  0 1px 3px rgba(16, 33, 66, .08);
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--primary-font-family);
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--tekst);
+  background: var(--achtergrond);
+}
+html { scroll-behavior: smooth; }
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+a { color: var(--primary-color); text-decoration: none; }
+a:hover { text-decoration: underline; color: var(--link-text-color); }
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--primary-font-family);
+  color: var(--primary-color);
+  word-wrap: break-word;
+}
+
+
+.kop-balk {
+  background: var(--wit);
+  border-bottom: 5px solid var(--primary-color);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.65rem 1.25rem;
+  flex-wrap: wrap;
+}
+.kop-merk { display: inline-flex; align-items: center; }
+.kop-logo {
+  height: 58px;
+  width: auto;
+  display: block;
+}
+.kop-inner { flex: 1 1 16rem; min-width: 0; }
+.kop-balk h1 {
+  margin: 0;
+  font-size: clamp(1.15rem, 3.6vw, 1.6rem);
+  font-weight: 700;
+  line-height: 1.2;
+}
+.kop-balk h1 span {
+  display: block;
+  font-size: 0.6em;
+  font-weight: 400;
+  color: var(--tekst-zacht);
+  margin-top: 0.2rem;
+}
+
+
+.golf-band {
+  background: var(--achtergrond);
+  line-height: 0;
+  overflow: hidden;
+}
+.golf-band svg { display: block; width: 100%; height: auto; }
+
+
+.inhoud {
+  width: 100%;
+  max-width: 46rem;
+  margin: 1.4rem auto 2.4rem;
+  padding: 0 1rem;
+  flex: 1 0 auto;
+}
+
+.intro-blok {
+  background: var(--wit);
+  border: 1px solid var(--rand);
+  border-left: 5px solid var(--primary-color);
+  border-radius: var(--border-radius);
+  box-shadow: var(--kaartschaduw);
+  padding: 1rem 1.2rem;
+  margin: 0 0 1.2rem;
+}
+.intro-blok h2 { margin: 0 0 0.4rem; font-size: 1.15rem; }
+.intro-blok p  { margin: 0.35rem 0; font-size: 0.97rem; }
+
+
+.terug-blok {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  background: var(--wit);
+  border: 1px solid var(--rand);
+  border-left: 5px solid var(--primary-color-tint);
+  border-radius: var(--border-radius);
+  box-shadow: var(--kaartschaduw);
+  padding: 1.1rem 1.2rem;
+  margin: 0 0 1.4rem;
+}
+.terug-blok.betaald { border-left-color: var(--ok); }
+
+.terug-icoon {
+  flex: 0 0 auto;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 50%;
+  border: 3px solid var(--vlak);
+  border-top-color: var(--primary-color);
+  background: var(--wit);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: draaien 0.9s linear infinite;
+}
+.terug-icoon.stop {
+  animation: none;
+  border-color: var(--rand);
+  color: var(--primary-color);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+.terug-icoon.gedaan {
+  animation: none;
+  border: none;
+  background: var(--ok);
+  color: var(--wit);
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+@keyframes draaien { to { transform: rotate(360deg); } }
+
+.terug-inhoud { flex: 1 1 auto; min-width: 0; }
+.terug-inhoud p { margin: 0 0 0.6rem; }
+.terug-inhoud p:last-child { margin-bottom: 0; }
+.terug-acties { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+
+
+form#aanvraagForm { margin: 0; }
+
+fieldset {
+  background: var(--wit);
+  border: 1px solid var(--rand);
+  border-radius: var(--border-radius);
+  box-shadow: var(--kaartschaduw);
+  margin: 0 0 1.1rem;
+  padding: 0;
+}
+fieldset legend {
+  float: left;
+  width: 100%;
+  background: var(--primary-color);
+  color: var(--primary-color-contrast);
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 0.55rem 1rem;
+  border-radius: calc(var(--border-radius) - 1px) calc(var(--border-radius) - 1px) 0 0;
+  box-sizing: border-box;
+}
+fieldset::after { content: ""; display: table; clear: both; }
+
+.veld-inner { padding: 0.9rem 1.1rem 1.1rem; }
+.veld-groep { margin: 0.85rem 0; }
+.veld-groep:last-child { margin-bottom: 0; }
+
+.veld-groep > label,
+.veld-groep .veld-titel {
+  display: block;
+  font-weight: 600;
+  font-size: 0.94rem;
+  margin-bottom: 0.3rem;
+}
+
+.verplicht-ster { color: var(--fout); font-weight: 700; }
+
+input[type="text"],
+input[type="date"],
+input[type="tel"],
+input[type="email"],
+select,
+textarea {
+  width: 100%;
+  padding: 0.58rem 0.65rem;
+  border: 1px solid var(--rand);
+  border-radius: 4px;
+  font: inherit;
+  color: var(--tekst);
+  background: var(--wit);
+}
+textarea { resize: vertical; min-height: 4.5rem; }
+input:focus, select:focus, textarea:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 1px;
+  border-color: var(--primary-color);
+}
+input[type="radio"],
+input[type="checkbox"] { accent-color: var(--primary-color); }
+
+
+.radio-lijst { display: flex; flex-wrap: wrap; gap: 0.4rem 1.6rem; }
+.radio-optie {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.96rem;
+}
+
+
+.hulp-tekst {
+  font-size: 0.85rem;
+  color: var(--tekst-zacht);
+  margin: 0.3rem 0 0;
+}
+
+
+.datum-invoer {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.datum-invoer input[type="text"] { flex: 1; min-width: 9rem; }
+.datum-invoer .kalender-invoer {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 8.6rem;
+}
+
+
+.akkoord-optie {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+  font-size: 0.94rem;
+}
+.akkoord-optie input[type="checkbox"] { margin-top: 0.22rem; }
+
+
+.voorwaarden-blok {
+  background: var(--vlak);
+  border: 1px solid var(--rand);
+  border-left: 4px solid var(--primary-color);
+  border-radius: 4px;
+  padding: 0.9rem 1rem;
+  margin: 0 0 1rem;
+}
+.voorwaarden-slogan {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--primary-color);
+  margin: 0 0 0.5rem;
+}
+.voorwaarden-blok .voorwaarden-lijst {
+  margin: 0 0 0.6rem;
+  padding-left: 1.1rem;
+}
+.voorwaarden-blok li,
+.voorwaarden-blok > p {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 0.35rem 0;
+}
+
+
+.verstuur-balk { text-align: center; margin: 1.2rem 0 0.4rem; }
+
+
+button#verstuurBtn,
+#terugStatusKnop,
+#betaalGemeldBtn,
+#kopieerBetaalBtn,
+.betalen-knop,
+.knop-primair {
+  display: inline-block;
+  background: var(--primary-color);
+  color: var(--primary-color-contrast);
+  border: 2px solid var(--primary-color);
+  border-radius: 4px;
+  font-family: var(--primary-font-family);
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+button#verstuurBtn:hover,
+#terugStatusKnop:hover,
+#betaalGemeldBtn:hover,
+#kopieerBetaalBtn:hover,
+.betalen-knop:hover,
+.knop-primair:hover,
+button#verstuurBtn:focus,
+#terugStatusKnop:focus,
+.betalen-knop:focus {
+  background: var(--primary-color-contrast);
+  color: var(--primary-color);
+  text-decoration: none;
+}
+button#verstuurBtn:disabled,
+#betaalGemeldBtn:disabled {
+  background: var(--rand);
+  border-color: var(--rand);
+  color: var(--tekst-zacht);
+  cursor: not-allowed;
+}
+
+button#verstuurBtn { font-size: 1.05rem; padding: 0.8rem 1.7rem; }
+
+.knop-secundair {
+  display: inline-block;
+  background: var(--primary-color-contrast);
+  color: var(--primary-color);
+  border: 2px solid var(--primary-color);
+  border-radius: 4px;
+  font-weight: 700;
+  padding: 0.5rem 1rem;
+  font-size: 0.95rem;
+}
+.knop-secundair:hover { background: var(--primary-color); color: var(--primary-color-contrast); text-decoration: none; }
+
+#statusTekst {
+  margin-top: 0.8rem;
+  font-size: 0.92rem;
+  border-radius: 4px;
+  padding: 0.6rem 0.9rem;
+  display: none;
+}
+#statusTekst.zichtbaar { display: block; }
+#statusTekst.fout { background: #fbe4e2; border: 1px solid #f3b5b1; color: var(--fout); }
+#statusTekst.ok   { background: #e6f4ea; border: 1px solid #b9ddc5; color: var(--ok); }
+#statusTekst.info { background: var(--vlak); border: 1px solid #c4d7e4; color: var(--info); }
+
+.veld-fout {
+  margin-top: 0.4rem;
+  font-size: 0.88rem;
+  color: var(--fout);
+  background: #fbe4e2;
+  border-left: 3px solid var(--fout);
+  padding: 0.4rem 0.6rem;
+  border-radius: 3px;
+}
+
+
+.bedankt-pagina { margin-top: 1.5rem; }
+.bedankt-inhoud {
+  background: var(--wit);
+  border: 1px solid var(--rand);
+  border-top: 5px solid var(--primary-color);
+  border-radius: var(--border-radius);
+  box-shadow: var(--kaartschaduw);
+  padding: 1.6rem 1.4rem;
+}
+.bedankt-titel {
+  color: var(--primary-color);
+  font-size: 1.55rem;
+  font-weight: 800;
+  margin: 0 0 1.1rem;
+  text-align: center;
+}
+.bedankt-inhoud > p { margin: 0 0 1rem; }
+.belangrijk {
+  background: var(--vlak);
+  border-left: 4px solid var(--primary-color);
+  border-radius: 4px;
+  padding: 0.9rem 1rem;
+  margin: 0 0 1rem;
+  font-size: 1rem;
+}
+.belangrijk p { margin: 0; }
+
+
+.betaal-blok {
+  background: var(--wit);
+  border: 1px solid var(--rand);
+  border-left: 5px solid var(--primary-color);
+  border-radius: var(--border-radius);
+  box-shadow: var(--kaartschaduw);
+  padding: 1.1rem;
+  margin: 0 0 1.2rem;
+}
+.betaal-titel {
+  font-weight: 800;
+  color: var(--primary-color);
+  margin: 0 0 0.7rem;
+  font-size: 1.1rem;
+}
+.betaal-row {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.betalen-knop {
+  display: block;
+  width: 100%;
+  padding: 0.85rem 1.5rem;
+  font-size: 1.1rem;
+}
+
+
+.betalen-knop.niet-klaar {
+  opacity: 0.55;
+  pointer-events: none;
+  cursor: progress;
+}
+
+.link-knop {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--primary-color);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.link-knop:hover { color: var(--link-text-color); }
+
+.qr-link { display: inline-block; line-height: 0; }
+#mollieUrlTekst {
+  display: inline-block;
+  max-width: 100%;
+  word-break: break-all;
+  font-size: 0.85rem;
+}
+.qr-link:hover .qr-img { border-color: var(--primary-color); }
+.qr-img {
+  width: 150px;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--rand);
+  border-radius: 4px;
+  padding: 4px;
+  background: var(--wit);
+}
+.kopieerbaar {
+  cursor: pointer;
+  border-bottom: 1px dashed var(--primary-color);
+}
+.kopieerbaar:active { background: var(--vlak); }
+.kopieerbaar:focus { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+.betaal-tekst { flex: 1; min-width: 220px; font-size: 0.97rem; }
+.betaal-tekst p { margin: 0 0 0.6rem; }
+.betaal-gegevens { margin: 0 0 0.8rem; padding-left: 1.1rem; list-style: disc; }
+.betaal-gegevens li { margin-bottom: 0.3rem; }
+#kopieerBetaalBtn { padding: 0.55rem 1rem; font-size: 1rem; }
+#kopieerStatus { color: var(--ok); font-weight: 700; }
+
+
+.betaal-meld-blok {
+  background: var(--vlak);
+  border: 1px solid var(--rand);
+  border-left: 5px solid var(--primary-color);
+  border-radius: var(--border-radius);
+  padding: 1.1rem;
+  margin: 0 0 1.2rem;
+}
+.betaal-meld-blok p { font-size: 0.97rem; }
+#betaalGemeldBtn { padding: 0.7rem 1.4rem; font-size: 1.05rem; margin: 0.3rem 0; }
+#betaalGemeldStatus.ok { color: var(--ok); font-weight: 700; }
+#betaalGemeldStatus.fout { color: var(--fout); font-weight: 700; }
+
+
+.blokkeer-fout {
+  margin: 0.4rem 0 0;
+  font-size: 1rem;
+  color: var(--fout);
+  background: #fbe4e2;
+  border: 1px solid #f3b5b1;
+  border-left: 5px solid var(--fout);
+  padding: 0.7rem 0.9rem;
+  border-radius: 4px;
+}
+
+
+@media (max-width: 576px) {
+  html, body { font-size: 16px; }
+  .kop-logo { height: 46px; }
+  .terug-blok { padding: 1rem; gap: 0.7rem; }
+  .bedankt-inhoud { padding: 1.3rem 1rem; }
+}
+</style>
+</head>
+<body>
+<header class="kop-balk">
+  <a class="kop-merk" href="https://hsvderuisvoorn.nl" title="Terug naar hsvderuisvoorn.nl">
+    <img src="https://images.foys.io/corespvu/club-sites/715119e0-2209-4ced-9eb6-a3b96e91d512?w=100" alt="HSV De Ruisvoorn" class="kop-logo">
+  </a>
+  <div class="kop-inner">
+    <h1>Aanvraag Autovergunning <span>HSV de Ruisvoorn Helden &mdash; nieuwe aanvraag of duplicaat</span></h1>
+  </div>
+</header>
+
+<div class="golf-band" aria-hidden="true">
+  <svg viewBox="0 0 1920 200" xmlns="http://www.w3.org/2000/svg" version="1.1" preserveAspectRatio="none">
+    <path d="M0 158L53.3 153C106.7 148 213.3 138 320 137.5C426.7 137 533.3 146 640 150.7C746.7 155.3 853.3 155.7 960 152.2C1066.7 148.7 1173.3 141.3 1280 144.3C1386.7 147.3 1493.3 160.7 1600 157C1706.7 153.3 1813.3 132.7 1866.7 122.3L1920 112L1920 0L1866.7 0C1813.3 0 1706.7 0 1600 0C1493.3 0 1386.7 0 1280 0C1173.3 0 1066.7 0 960 0C853.3 0 746.7 0 640 0C533.3 0 426.7 0 320 0C213.3 0 106.7 0 53.3 0L0 0Z" style="fill: var(--primary-color); fill-opacity: 0.2;"></path>
+    <path d="M0 97L53.3 100.7C106.7 104.3 213.3 111.7 320 113.7C426.7 115.7 533.3 112.3 640 112.2C746.7 112 853.3 115 960 114.5C1066.7 114 1173.3 110 1280 103C1386.7 96 1493.3 86 1600 79C1706.7 72 1813.3 68 1866.7 66L1920 64L1920 0L1866.7 0C1813.3 0 1706.7 0 1600 0C1493.3 0 1386.7 0 1280 0C1173.3 0 1066.7 0 960 0C853.3 0 746.7 0 640 0C533.3 0 426.7 0 320 0C213.3 0 106.7 0 53.3 0L0 0Z" style="fill: var(--primary-color); fill-opacity: 0.6;"></path>
+    <path d="M0 71L53.3 67.3C106.7 63.7 213.3 56.3 320 57.7C426.7 59 533.3 69 640 69.3C746.7 69.7 853.3 60.3 960 57.3C1066.7 54.3 1173.3 57.7 1280 59.3C1386.7 61 1493.3 61 1600 56.7C1706.7 52.3 1813.3 43.7 1866.7 39.3L1920 35L1920 0L1866.7 0C1813.3 0 1706.7 0 1600 0C1493.3 0 1386.7 0 1280 0C1173.3 0 1066.7 0 960 0C853.3 0 746.7 0 640 0C533.3 0 426.7 0 320 0C213.3 0 106.7 0 53.3 0L0 0Z" style="fill: var(--primary-color); fill-opacity: 1;"></path>
+  </svg>
+</div>
+
+<main class="inhoud">
+  <section class="intro-blok">
+    <h2>Aanvragen is zo geregeld</h2>
+    <p>Vul onderstaand formulier in om een Autovergunning of een duplicaat daarvan aan te vragen. Bekijk vooraf de <strong>voorwaarden</strong>; alleen bij een <strong>eerste</strong> aanvraag is een <strong>geldige invalidenkaart minimaal verplicht</strong>.</p>
+    <p>Na verzenden gaat uw aanvraag meteen naar het <strong>secretariaat</strong> van de vereniging. Bij een duplicaat betaalt u &euro;5 met iDEAL zodra u op de volgende pagina bent.</p>
+  </section>
+
+  <section id="terugVanBetaling" class="terug-blok" hidden>
+    <span class="terug-icoon" id="terugIcoon" aria-hidden="true"></span>
+    <div class="terug-inhoud">
+      <p class="betaal-titel" id="terugTitel">Terug van het betalen</p>
+      <p id="terugTekst">Wij controleren uw betaling. Dit kan enkele seconden duren.</p>
+      <p class="terug-acties">
+        <button type="button" id="terugStatusKnop">Controleer nu</button>
+        <a id="terugNaarSite" class="knop-secundair" href="https://hsvderuisvoorn.nl" hidden>Terug naar de website</a>
+      </p>
+    </div>
+  </section>
+
+  <form id="aanvraagForm" novalidate>
+
+    <fieldset>
+      <legend>Type aanvraag</legend>
+      <div class="veld-inner">
+
+        <div class="veld-groep">
+          <span class="veld-titel">Wat wilt u aanvragen? <span class="verplicht-ster">*</span></span>
+          <div class="radio-lijst">
+            <label class="radio-optie"><input type="radio" name="soortAanvraag" value="nieuw" required> Aanvraag nieuwe vergunning</label>
+            <label class="radio-optie"><input type="radio" name="soortAanvraag" value="duplicaat" required> Aanvraag duplicaat vergunning</label>
+          </div>
+          <p id="duplicaatKosten" class="hulp-tekst" hidden>Een duplicaat vergunning kost <strong>&euro;5</strong>; dit bedrag betaalt u met iDEAL nadat u de aanvraag heeft verstuurd.</p>
+        </div>
+
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Gegevens aanvrager</legend>
+      <div class="veld-inner">
+
+        <div class="veld-groep">
+          <label for="datumAanvraag">Datum aanvraag <span class="verplicht-ster">*</span></label>
+          <div class="datum-invoer">
+            <input type="text" id="datumAanvraag" name="datumAanvraag" placeholder="dd-mm-jjjj" inputmode="numeric" pattern="[0-9]{1,2}-[0-9]{1,2}-[0-9]{4}" autocomplete="off" required>
+            <input type="date" id="datumAanvraagKalender" class="kalender-invoer" aria-label="Kies de datum aanvraag via de kalender">
+          </div>
+          <p class="hulp-tekst">Typ de datum zelf in (dd-mm-jjjj) of kies hem via de kalender.</p>
+        </div>
+
+        <div class="veld-groep">
+          <label for="voorletters">Voorletters <span class="verplicht-ster">*</span></label>
+          <input type="text" id="voorletters" name="voorletters" autocomplete="honorific-prefix" placeholder="bijv. J.P." required>
+        </div>
+
+        <div class="veld-groep">
+          <label for="voornaam">Voornaam <span class="verplicht-ster">*</span></label>
+          <input type="text" id="voornaam" name="voornaam" autocomplete="given-name" required>
+        </div>
+
+        <div class="veld-groep">
+          <label for="achternaam">Achternaam <span class="verplicht-ster">*</span></label>
+          <input type="text" id="achternaam" name="achternaam" autocomplete="family-name" required>
+        </div>
+
+        <div class="veld-groep">
+          <label for="geboortedatum">Geboortedatum <span class="verplicht-ster">*</span></label>
+          <div class="datum-invoer">
+            <input type="text" id="geboortedatum" name="geboortedatum" placeholder="dd-mm-jjjj" inputmode="numeric" pattern="[0-9]{1,2}-[0-9]{1,2}-[0-9]{4}" autocomplete="off" required>
+            <input type="date" id="geboortedatumKalender" class="kalender-invoer" aria-label="Kies de geboortedatum via de kalender">
+          </div>
+          <p class="hulp-tekst">Typ de datum zelf in (dd-mm-jjjj) of kies hem via de kalender.</p>
+        </div>
+
+        <div class="veld-groep">
+          <label for="vispasnummer">Vispasnummer <span class="verplicht-ster">*</span></label>
+          <input type="text" id="vispasnummer" name="vispasnummer" autocomplete="off" required>
+        </div>
+
+        <div class="veld-groep">
+          <label for="emailAdres">E-mailadres <span class="verplicht-ster">*</span></label>
+          <input type="email" id="emailAdres" name="emailAdres" autocomplete="email" placeholder="bijv. naam@voorbeeld.nl" required>
+          <p class="hulp-tekst">Hierop bereikt het secretariaat u over deze aanvraag.</p>
+        </div>
+
+      </div>
+    </fieldset>
+
+    <fieldset id="invalideVeld">
+      <legend>Invalidenkaart</legend>
+      <div class="veld-inner">
+
+        <div class="veld-groep">
+          <span class="veld-titel">Heeft u een invalidenkaart? <span class="verplicht-ster">*</span></span>
+          <div class="radio-lijst">
+            <label class="radio-optie"><input type="radio" name="invalidenkaart" value="ja"> Ja</label>
+            <label class="radio-optie"><input type="radio" name="invalidenkaart" value="nee"> Nee</label>
+          </div>
+        </div>
+
+        <div class="veld-groep" id="geenInvalideBericht" hidden>
+          <p class="blokkeer-fout">Een invalidenkaart is minimaal verplicht voor een aanvraag voor een Autovergunning.<br><strong>U komt niet in aanmerking voor een Autovergunning.</strong></p>
+        </div>
+
+        <div class="veld-groep" id="invalideGroep" hidden>
+          <label for="invalidenkaartNummer">Nummer invalidenkaart <span class="verplicht-ster">*</span></label>
+          <input type="text" id="invalidenkaartNummer" name="invalidenkaartNummer" autocomplete="off" placeholder="Vul het nummer van uw invalidenkaart in">
+        </div>
+
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Akkoord en voorwaarden</legend>
+      <div class="veld-inner">
+
+        <div class="voorwaarden-blok">
+          <p class="voorwaarden-slogan">Deze vergunning is en blijft eigendom van de vereniging</p>
+          <ul class="voorwaarden-lijst">
+            <li>De vergunning is alleen geldig in het jaar vermeld op deze vergunning.</li>
+            <li>De vergunning is alleen geldig in combinatie met een geldige vispas voorzien van logo van HSV de Ruisvoorn Helden.</li>
+            <li>De vergunning is alleen geldig als die is voorzien van de naam en vispasnummer van de vergunninghouder zoals vermeld op de VISpas</li>
+            <li>Zonder vergunning is toetreden tot het terrein verboden</li>
+            <li>De verplichte rijrichting volgt (mits anders aangegeven).</li>
+            <li>Het terrein alleen betreden voor uitoefening van uw sport, werkzaamheden, of bestuurstaken.</li>
+            <li>De poort gesloten wordt zodra u het terrein op of af gaat.</li>
+            <li>Indien van toepassing alle aanwijzingen van de wedstrijdcommissie worden opgevolgd.</li>
+          </ul>
+          <p>De vergunning dient duidelijk zichtbaar en leesbaar voor de voorruit van uw auto te liggen.</p>
+          <p>U kunt de vereniging niet aansprakelijk stellen voor eventuele schade aan uw voertuig door welke oorzaak dan ook.</p>
+        </div>
+
+        <div class="veld-groep" id="borgGroep">
+          <label class="akkoord-optie">
+            <input type="checkbox" id="borgAkkoord" name="borgAkkoord">
+            <span>Ik ga akkoord dat er <strong>&euro;25 borg voor de sleutel</strong> in rekening wordt gebracht. <span class="verplicht-ster">*</span></span>
+          </label>
+          <p id="borgAkkoordFout" class="veld-fout" hidden>U komt niet in aanmerking: het akkoord dat er &euro;25 borg voor de sleutel in rekening wordt gebracht is minimaal verplicht.</p>
+        </div>
+
+        <div class="veld-groep" id="duplicaatGroep" hidden>
+          <label class="akkoord-optie">
+            <input type="checkbox" id="duplicaatKostenAkkoord" name="duplicaatKostenAkkoord">
+            <span>Ik ga akkoord dat er <strong>&euro;5</strong> voor de duplicaat vergunning in rekening wordt gebracht. <span class="verplicht-ster">*</span></span>
+          </label>
+          <p id="duplicaatKostenAkkoordFout" class="veld-fout" hidden>U komt niet in aanmerking: het akkoord dat er &euro;5 in rekening wordt gebracht is minimaal verplicht.</p>
+        </div>
+
+        <div class="veld-groep">
+          <label class="akkoord-optie">
+            <input type="checkbox" id="avgAkkoord" name="avgAkkoord">
+            <span>Ik ga akkoord dat HSV De Ruisvoorn mijn gegevens gebruikt om deze aanvraag te verwerken, conform de AVG. <span class="verplicht-ster">*</span></span>
+          </label>
+          <p id="avgAkkoordFout" class="veld-fout" hidden>Het akkoord met de AVG is minimaal verplicht om de aanvraag te kunnen verzenden.</p>
+        </div>
+
+        <div class="veld-groep">
+          <label class="akkoord-optie">
+            <input type="checkbox" id="voorwaardenCheckbox" name="voorwaardenCheckbox">
+            <span>Ik ga akkoord met de voorwaarden van de Autovergunning. <span class="verplicht-ster">*</span></span>
+          </label>
+          <p id="voorwaardenCheckboxFout" class="veld-fout" hidden>Het accepteren van de voorwaarden is minimaal verplicht om de aanvraag te kunnen verzenden.</p>
+        </div>
+
+      </div>
+    </fieldset>
+
+    <div class="verstuur-balk">
+      <button type="submit" id="verstuurBtn">Aanvraag versturen</button>
+      <p id="statusTekst">Nog niet verzonden.</p>
+    </div>
+
+  </form>
+
+  <section id="geluktPagina" class="bedankt-pagina" hidden>
+    <div class="bedankt-inhoud">
+      <h2 class="bedankt-titel">Aanvraag ontvangen</h2>
+
+      <div id="geluktNieuw" hidden>
+        <p>Uw aanvraag voor een Autovergunning is in goede orde ontvangen en doorgestuurd naar het secretariaat.</p>
+        <div class="belangrijk">
+          <p>De <strong>definitieve toekenning</strong> wordt besloten door het <strong>bestuur</strong> op de <strong>eerstvolgende bestuursvergadering</strong>, op basis van het aantal <strong>beschikbare sleutels</strong>. De borg van &euro;25 voor de sleutel wordt pas bij toekenning in rekening gebracht.</p>
+        </div>
+      </div>
+
+      <div id="geluktDuplicaat" hidden>
+        <p>Wij hebben uw aanvraag voor een duplicaat Autovergunning ontvangen en doorgestuurd naar het secretariaat. Wij sturen de duplicaat <strong>zo snel mogelijk toe</strong>, nadat u de kosten van <strong>&euro;5</strong> heeft voldaan.</p>
+
+        <div id="mollieBlok" class="betaal-blok" hidden>
+          <p class="betaal-titel">Betalen met uw eigen bank (iDEAL)</p>
+          <p>Tik op de knop hieronder, kies uw bank en log in. Daarna wordt u teruggestuurd naar deze pagina en weten wij direct dat u betaald heeft.</p>
+          <a id="mollieKnop" class="betalen-knop" href="#" target="_blank" rel="noopener">Betaal &euro;5 met iDEAL</a>
+          <p id="mollieStatus" class="hulp-tekst" hidden></p>
+          <p class="hulp-tekst">Lukt het niet via de knop? Tik dan op deze link om de betaallink te openen:<br>
+            <span id="mollieUrlTekst" class="kopieerbaar" data-kopieer="mollielink" role="button" tabindex="0" title="Tik om de betaallink te kopi&euml;ren">&hellip;</span>
+          </p>
+          <p class="hulp-tekst"><button type="button" id="mollieVernieuwenBtn" class="link-knop">Link verlopen of niet gelukt? Vraag een nieuwe betaallink</button></p>
+        </div>
+      </div>
+
+      <p id="bedanktReferentie" class="hulp-tekst" hidden>Uw referentie: <strong>&hellip;</strong></p>
+
+      <p>Heeft u vragen? Stuur die naar <a href="mailto:secretariaat@hsvderuisvoorn.nl">secretariaat@hsvderuisvoorn.nl</a>.</p>
+    </div>
+  </section>
+</main>
+
+<script>
+/* =============================================================
+   Autovergunning â€” websitebestand (hsvderuisvoorn.nl)
+   Frontend voor het invoegblok in een bestaande pagina.
+
+   Werkt met de backend die al voor de oude aanvraagpagina draait
+   (backend/AUTOVERGUNNING-KOPIEER-DIT.js, al geÃ¯mplementeerd op
+   Apps Script): er hoeft niets geÃ¯nstalleerd of gedeployd te worden.
+   Alles gaat via JSONP: een POST vanuit een browser wordt door de
+   redirect van Apps Script in een GET veranderd, waardoor doPost
+   nooit zou draaien.
+
+   De backend spreekt: ?act=aanvraag&data=...&callback=...
+                        ?act=bekend&ref=...        (antwoord: gevonden)
+                        ?act=betaallink&ref=...&nieuw=0|1 (antwoord: url)
+                        ?act=status&ref=...        (antwoord: status)
+   ============================================================= */
+
+var BACKEND_URL = "https://script.google.com/macros/s/AKfycbyGgzq52fmObOgDZndUQSKssPCwzFZz7wAiAmSSFZrauo2n9E7UZmK4naoUS6eZFIY/exec";
+
+var VERZEND_TIMEOUT_MS = 45000;
+var VERZEND_POGINGEN = 3;
+var REF_SLEUTEL = "hsvDuplicaatRef";
+
+var laatsteSoortAanvraag = "";
+var laatsteRef = "";
+var laatsteMollieUrl = "";
+
+/* ------------------------------------------------------------
+   Backend aanroepen (JSONP)
+   ------------------------------------------------------------ */
+function backendJsonp(act, params, timeoutMs) {
+  return new Promise(function (resolve, reject) {
+    if (!BACKEND_URL) { reject(new Error("backend niet ingesteld")); return; }
+    var cb = "hsvCb" + Date.now() + Math.floor(Math.random() * 1000);
+    var script = document.createElement("script");
+    var timer = setTimeout(function () {
+      ruim(cb, script);
+      reject(new Error("timeout"));
+    }, timeoutMs || VERZEND_TIMEOUT_MS);
+    function ruim(naam, el) {
+      clearTimeout(timer);
+      try { delete window[naam]; } catch (e) { window[naam] = undefined; }
+      if (el && el.parentNode) { el.parentNode.removeChild(el); }
+    }
+    window[cb] = function (data) {
+      ruim(cb, script);
+      resolve(data || {});
+    };
+    script.onerror = function () {
+      ruim(cb, script);
+      reject(new Error("netwerk"));
+    };
+    script.src = BACKEND_URL + "?act=" + act + "&callback=" + cb +
+      "&" + (params || "");
+    document.head.appendChild(script);
+  });
+}
+
+/* ------------------------------------------------------------
+   Referentie onthouden (nodig na terugkomst van Mollie)
+   ------------------------------------------------------------ */
+function bewaarRef(ref) {
+  laatsteRef = ref || laatsteRef;
+  if (!laatsteRef) { return; }
+  try { sessionStorage.setItem(REF_SLEUTEL, laatsteRef); } catch (e) { /* geen opslag */ }
+  try {
+    document.cookie = REF_SLEUTEL + "=" + encodeURIComponent(laatsteRef) +
+      "; path=/; max-age=1800; SameSite=Lax";
+  } catch (e) { /* geen cookies */ }
+}
+
+function haalRefOp() {
+  var ref = "";
+  try { ref = sessionStorage.getItem(REF_SLEUTEL) || ""; } catch (e) { ref = ""; }
+  if (!ref) {
+    var naam = REF_SLEUTEL + "=";
+    var delen = String(document.cookie || "").split(";");
+    for (var i = 0; i < delen.length; i++) {
+      var stuk = delen[i].replace(/^\s+/, "");
+      if (stuk.indexOf(naam) === 0) { ref = decodeURIComponent(stuk.substring(naam.length)); }
+    }
+    if (ref) { bewaarRef(ref); }
+  }
+  return ref;
+}
+
+/* ------------------------------------------------------------
+   Meldingen
+   ------------------------------------------------------------ */
+function toonStatus(tekst, soort) {
+  var el = document.getElementById("statusTekst");
+  if (!el) { return; }
+  el.textContent = tekst;
+  el.className = "zichtbaar";
+  if (soort === "ok")   { el.classList.add("ok"); }
+  if (soort === "fout") { el.classList.add("fout"); }
+  if (soort === "info") { el.classList.add("info"); }
+}
+
+function toonAls(el, zichtbaar) {
+  if (el) { el.hidden = !zichtbaar; }
+}
+
+function toonMollieStatus(bericht) {
+  var el = document.getElementById("mollieStatus");
+  if (!el) { return; }
+  el.textContent = bericht || "";
+  el.hidden = !bericht;
+}
+
+/* ------------------------------------------------------------
+   Betaallink tonen / nieuwe link vragen
+   ------------------------------------------------------------ */
+function zetMollieKnop(url, melding) {
+  var blok = document.getElementById("mollieBlok");
+  var knop = document.getElementById("mollieKnop");
+  var tekst = document.getElementById("mollieUrlTekst");
+  if (!url) {
+    if (blok) { blok.hidden = true; blok.style.display = "none"; }
+    toonMollieStatus("");
+    return;
+  }
+  laatsteMollieUrl = url;
+  if (blok) { blok.hidden = false; blok.style.display = "block"; }
+  if (knop) {
+    knop.href = url;
+    knop.classList.remove("niet-klaar");
+    knop.removeAttribute("aria-disabled");
+  }
+  if (tekst) { tekst.textContent = url; }
+  toonMollieStatus(melding || "");
+}
+
+function vraagBetaallinkOp(nieuw) {
+  var ref = laatsteRef || haalRefOp();
+  if (!ref) { return Promise.resolve(); }
+  toonMollieStatus(nieuw ? "Een nieuwe betaallink wordt aangemaakt..." : "Betaallink ophalen...");
+  return backendJsonp("betaallink",
+    "ref=" + encodeURIComponent(ref) + "&nieuw=" + (nieuw ? "1" : "0"), 30000)
+    .then(function (data) {
+      var link = data ? (data.betaallink || data.url) : "";
+      if (link) {
+        zetMollieKnop(link, nieuw ? "Nieuwe betaallink aangemaakt." : "");
+        return;
+      }
+      toonMollieStatus("De betaallink kon niet worden opgehaald. " +
+        String((data && data.fout) || "Probeer het later opnieuw.") +
+        " U kunt ook mailen naar secretariaat@hsvderuisvoorn.nl.");
+    })
+    .catch(function () {
+      toonMollieStatus("Geen verbinding om de betaallink op te halen. Probeer het over enkele seconden opnieuw.");
+    });
+}
+
+/* ------------------------------------------------------------
+   Terug van Mollie: status controleren
+   ------------------------------------------------------------ */
+var TERUG_POGINGEN = 6;
+var TERUG_INTERVAL = 2500;
+
+function controleerBetaalstatus() {
+  var sectie = document.getElementById("terugVanBetaling");
+  var tekst = document.getElementById("terugTekst");
+  var titel = document.getElementById("terugTitel");
+  var icoon = document.getElementById("terugIcoon");
+  var knop = document.getElementById("terugStatusKnop");
+  var knopSite = document.getElementById("terugNaarSite");
+  var ref = haalRefOp();
+  if (!sectie || !ref || !BACKEND_URL) { return; }
+  var params = new URLSearchParams(window.location.search);
+  if (params.get("betaald") !== "1") { return; }
+
+  sectie.hidden = false;
+  sectie.style.display = "flex";
+  sectie.classList.remove("betaald");
+  if (titel) { titel.textContent = "Terug van het betalen"; }
+  if (icoon) { icoon.classList.remove("gedaan", "stop"); icoon.textContent = ""; }
+  if (knop) { knop.hidden = false; knop.style.display = ""; }
+  if (knopSite) { knopSite.hidden = true; }
+  var form = document.getElementById("aanvraagForm");
+  if (form) { form.hidden = true; form.style.display = "none"; }
+
+  function koppelOpnieuwKnop() {
+    var opnieuwKnop = document.getElementById("mollieOpnieuw");
+    if (opnieuwKnop) {
+      opnieuwKnop.addEventListener("click", function (e) {
+        e.preventDefault();
+        vraagBetaallinkOp(true);
+      });
+    }
+  }
+
+  function toonGelukt() {
+    sectie.classList.add("betaald");
+    if (titel) { titel.textContent = "Betaling geslaagd"; }
+    if (icoon) { icoon.classList.add("gedaan"); icoon.textContent = "\u2713"; }
+    if (knop) { knop.hidden = true; knop.style.display = "none"; }
+    if (knopSite) { knopSite.hidden = false; }
+    if (tekst) {
+      tekst.innerHTML = "Uw betaling van &euro;5 is ontvangen. Uw duplicaatvergunning " +
+        "wordt zo snel mogelijk voor u <strong>aangemaakt en verstuurd</strong>.";
+    }
+  }
+
+  var poging = 0;
+  function opnieuw(wachten) {
+    if (poging >= TERUG_POGINGEN) {
+      if (icoon) { icoon.classList.add("stop"); icoon.textContent = "?"; }
+      if (tekst) {
+        tekst.innerHTML = "Wij hebben uw betaling nog niet binnen. Het kan zijn dat uw bank het nog verwerkt. Kies <em>Controleer nu</em> om het opnieuw te proberen. Is de betaling niet gelukt? Vraag dan <a href=\"#\" id=\"mollieOpnieuw\">een nieuwe betaallink</a> of mail ons uw referentie.";
+        koppelOpnieuwKnop();
+      }
+      return;
+    }
+    if (wachten) {
+      if (tekst) {
+        tekst.innerHTML = "Wij controleren uw betaling automatisch nog even (poging " +
+          (poging + 1) + " van " + TERUG_POGINGEN + ")...";
+      }
+      setTimeout(function () { opnieuw(false); }, TERUG_INTERVAL);
+      return;
+    }
+    poging++;
+    backendJsonp("status", "ref=" + encodeURIComponent(ref), 20000)
+      .then(function (data) {
+        var status = data && data.status ? String(data.status) : "";
+        if (status === "paid" || status === "authorized") {
+          toonGelukt();
+          return;
+        }
+        if (tekst) {
+          tekst.innerHTML = "Wij hebben uw betaling nog niet binnen; uw bank verwerkt die nog. Wij controleren automatisch opnieuw.";
+        }
+        opnieuw(true);
+      })
+      .catch(function () { opnieuw(true); });
+  }
+
+  opnieuw(false);
+}
+
+/* ------------------------------------------------------------
+   Referenties en basisgegevens
+   ------------------------------------------------------------ */
+function maakReferentie() {
+  var t = new Date();
+  var deel1 = t.getTime().toString(36).toUpperCase().slice(-6);
+  var deel2 = Math.random().toString(36).toUpperCase().slice(2, 6);
+  return "DUP-" + deel1 + "-" + deel2;
+}
+
+function maakAanvraagId() {
+  var t = new Date();
+  var deel1 = t.getTime().toString(36).toUpperCase().slice(-6);
+  var deel2 = Math.random().toString(36).toUpperCase().slice(2, 6);
+  return "AV-" + deel1 + "-" + deel2;
+}
+
+function terugUrl() {
+  return String(window.location.href || "").split(/[?#]/)[0];
+}
+
+function naB64url(tekst) {
+  var s = String(tekst || "");
+  var bin;
+  if (typeof TextEncoder !== "undefined") {
+    var bytes = new TextEncoder().encode(s);
+    bin = "";
+    for (var i = 0; i < bytes.length; i++) { bin += String.fromCharCode(bytes[i]); }
+  } else {
+    bin = unescape(encodeURIComponent(s));
+  }
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function wacht(ms) {
+  return new Promise(function (resolve) { setTimeout(resolve, ms); });
+}
+
+/* ------------------------------------------------------------
+   Versturen
+   ------------------------------------------------------------ */
+function verstuurAanvraag(aanvraag) {
+  var lichaam = JSON.stringify(aanvraag);
+  var params = "data=" + encodeURIComponent(naB64url(lichaam)) +
+    "&terug=" + encodeURIComponent(terugUrl());
+
+  function poging(nummer) {
+    return backendJsonp("aanvraag", params, VERZEND_TIMEOUT_MS).then(function (antwoord) {
+      if (!antwoord || antwoord.ok !== true) {
+        throw new Error(String((antwoord && antwoord.fout) || "onbekend antwoord van de backend"));
+      }
+      return antwoord;
+    }).catch(function (fout) {
+      /* Een timeout of een 404 betekent niet dat de aanvraag kwijt is:
+         de backend mailt maar Ã©Ã©n keer per aanvraag-id, dus nog een
+         keer sturen kan geen kwaad. Tussendoor even navragen of hij al
+         binnen is. */
+      if (nummer >= VERZEND_POGINGEN - 1) { throw fout; }
+      return controleerOntvangen(aanvraag.aanvraagId, 1, 8000).then(function (binnen) {
+        if (binnen) { return { ok: true, alBinnen: true, referentie: aanvraag.aanvraagId }; }
+        return wacht(1200).then(function () {
+          toonStatus("Verbinding mislukt, opnieuw proberen (" + (nummer + 2) +
+            " van " + VERZEND_POGINGEN + ")...", "info");
+          return poging(nummer + 1);
+        });
+      });
+    });
+  }
+  return poging(0);
+}
+
+function controleerOntvangen(id, pogingen, timeoutMs) {
+  if (!id) { return Promise.resolve(false); }
+  var maxPogingen = pogingen || 3;
+  function vraag(poging) {
+    return backendJsonp("bekend", "ref=" + encodeURIComponent(id), timeoutMs || 15000)
+      .then(function (antwoord) {
+        if (!antwoord) { return false; }
+        return !!(antwoord.gevonden || antwoord.gekend);
+      })
+      .catch(function () {
+        if (poging < maxPogingen - 1) {
+          return wacht(1500).then(function () { return vraag(poging + 1); });
+        }
+        return false;
+      });
+  }
+  return vraag(0);
+}
+
+/* ------------------------------------------------------------
+   Formulier uitlezen en controleren
+   ------------------------------------------------------------ */
+function verzamelAanvraag() {
+  function waarde(id) {
+    var el = document.getElementById(id);
+    return el ? el.value.trim() : "";
+  }
+  function radioWaarde(naam) {
+    var r = document.querySelector('input[name="' + naam + '"]:checked');
+    return r ? r.value : "";
+  }
+  function checkbox(id) {
+    var el = document.getElementById(id);
+    return el ? el.checked : false;
+  }
+
+  var voorwaardenOk = checkbox("voorwaardenCheckbox");
+
+  return {
+    type: "aanvraag-autovergunning-site",
+    soortAanvraag:   radioWaarde("soortAanvraag"),
+    datumAanvraag:   waarde("datumAanvraag"),
+    voorletters:     waarde("voorletters"),
+    voornaam:        waarde("voornaam"),
+    achternaam:      waarde("achternaam"),
+    geboortedatum:   waarde("geboortedatum"),
+    vispasnummer:    waarde("vispasnummer"),
+    emailAdres:      waarde("emailAdres"),
+    invalidenkaart:  radioWaarde("invalidenkaart"),
+    invalidenkaartNummer: waarde("invalidenkaartNummer"),
+    borgAkkoord:     checkbox("borgAkkoord"),
+    duplicaatKostenAkkoord: checkbox("duplicaatKostenAkkoord"),
+    avgAkkoord:      checkbox("avgAkkoord"),
+    voorwaardenCheckbox: voorwaardenOk,
+    voorwaardenRadio: voorwaardenOk ? "ja" : ""
+  };
+}
+
+function controleerAanvraag() {
+  var form = document.getElementById("aanvraagForm");
+
+  if (!form.checkValidity()) {
+    toonStatus("Er zijn nog verplichte velden niet (goed) ingevuld. Verbeter de velden met een rode rand.", "fout");
+    form.reportValidity();
+    return false;
+  }
+
+  var soort = document.querySelector('input[name="soortAanvraag"]:checked');
+  if (!soort) {
+    toonStatus("Maak een keuze: een nieuwe vergunning of een duplicaat vergunning.", "fout");
+    form.reportValidity();
+    return false;
+  }
+
+  var invalide = document.querySelector('input[name="invalidenkaart"]:checked');
+
+  if (soort.value !== "duplicaat") {
+    if (!invalide) {
+      toonStatus("Geef aan of u een invalidenkaart heeft.", "fout");
+      form.reportValidity();
+      return false;
+    }
+    if (invalide.value === "nee") {
+      toonStatus("U komt niet in aanmerking voor een Autovergunning: een invalidenkaart is minimaal verplicht voor een aanvraag.", "fout");
+      return false;
+    }
+    if (!document.getElementById("invalidenkaartNummer").value.trim()) {
+      toonStatus("Vul het nummer van uw invalidenkaart in.", "fout");
+      document.getElementById("invalidenkaartNummer").focus();
+      return false;
+    }
+  }
+
+  var borg = document.getElementById("borgAkkoord");
+  var dupKosten = document.getElementById("duplicaatKostenAkkoord");
+  if (soort.value === "duplicaat") {
+    toonAls(document.getElementById("borgAkkoordFout"), false);
+    toonAls(document.getElementById("duplicaatKostenAkkoordFout"), !dupKosten.checked);
+    if (!dupKosten.checked) {
+      toonStatus("U komt niet in aanmerking: het akkoord dat er â‚¬5 in rekening wordt gebracht is minimaal verplicht voor een duplicaat vergunning.", "fout");
+      return false;
+    }
+  } else {
+    toonAls(document.getElementById("duplicaatKostenAkkoordFout"), false);
+    toonAls(document.getElementById("borgAkkoordFout"), !borg.checked);
+    if (!borg.checked) {
+      toonStatus("U komt niet in aanmerking voor een Autovergunning: het akkoord dat er â‚¬25 borg voor de sleutel in rekening wordt gebracht is minimaal verplicht.", "fout");
+      return false;
+    }
+  }
+
+  var avg = document.getElementById("avgAkkoord");
+  toonAls(document.getElementById("avgAkkoordFout"), !avg.checked);
+  if (!avg.checked) {
+    toonStatus("Het akkoord met de AVG is minimaal verplicht om de aanvraag te kunnen verzenden.", "fout");
+    return false;
+  }
+
+  var voorwBox = document.getElementById("voorwaardenCheckbox");
+  toonAls(document.getElementById("voorwaardenCheckboxFout"), !voorwBox.checked);
+  if (!voorwBox.checked) {
+    toonStatus("Het accepteren van de voorwaarden is minimaal verplicht om de aanvraag te kunnen verzenden.", "fout");
+    return false;
+  }
+
+  return true;
+}
+
+/* ------------------------------------------------------------
+   Bevestigingspagina
+   ------------------------------------------------------------ */
+function toonGeluktPagina(antwoord) {
+  var form = document.getElementById("aanvraagForm");
+  var sectie = document.getElementById("geluktPagina");
+  if (sectie) { sectie.hidden = false; sectie.style.display = "block"; }
+  if (form) { form.hidden = true; form.style.display = "none"; }
+
+  var isDuplicaat = laatsteSoortAanvraag === "duplicaat";
+  toonAls(document.getElementById("geluktNieuw"), !isDuplicaat);
+  toonAls(document.getElementById("geluktDuplicaat"), isDuplicaat);
+
+  var ref = (antwoord && antwoord.referentie) || laatsteRef;
+  var refRegel = document.getElementById("bedanktReferentie");
+  if (refRegel) {
+    if (ref) {
+      refRegel.innerHTML = "";
+      refRegel.appendChild(document.createTextNode("Uw referentie: "));
+      var sterk = document.createElement("strong");
+      sterk.textContent = ref;
+      refRegel.appendChild(sterk);
+      refRegel.appendChild(document.createTextNode(" â€” bewaar deze bij vragen over uw aanvraag."));
+      refRegel.hidden = false;
+    } else {
+      refRegel.hidden = true;
+    }
+  }
+
+  if (isDuplicaat) {
+    if (antwoord && antwoord.betaallink) {
+      zetMollieKnop(antwoord.betaallink, "");
+    } else {
+      toonMollieStatus("De betaallink kon niet meteen worden aangemaakt" +
+        (antwoord && antwoord.fout ? ": " + antwoord.fout : "") +
+        ". Vraag hem hieronder opnieuw aan of mail ons.");
+      var blok = document.getElementById("mollieBlok");
+      if (blok) { blok.hidden = false; blok.style.display = "block"; }
+    }
+  }
+
+  if (sectie && sectie.scrollIntoView) { sectie.scrollIntoView(); }
+  window.scrollTo(0, 0);
+}
+
+/* ------------------------------------------------------------
+   Verzenden op formulier
+   ------------------------------------------------------------ */
+function verstuurFormulier(e) {
+  e.preventDefault();
+  if (!controleerAanvraag()) { return; }
+
+  var aanvraag = verzamelAanvraag();
+  aanvraag.aanvraagId = maakAanvraagId();
+  if (aanvraag.soortAanvraag === "duplicaat") {
+    aanvraag.betaalReferentie = maakReferentie();
+    aanvraag.aanvraagId = aanvraag.betaalReferentie;
+    bewaarRef(aanvraag.betaalReferentie);
+  } else {
+    /* Ook de referentie tonen: de backend stuurt die niet terug, dus
+       we gebruiken de aanvraag-id die we zelf hebben gemaakt. In
+       sessionStorage mag hij niet staan: die is alleen voor een
+       duplicaat dat nog terugkomt van Mollie. */
+    laatsteRef = aanvraag.aanvraagId;
+    try { sessionStorage.removeItem(REF_SLEUTEL); } catch (err) { /* geen opslag */ }
+  }
+  laatsteSoortAanvraag = aanvraag.soortAanvraag;
+
+  if (!BACKEND_URL) {
+    toonStatus("Dit formulier is nog niet gekoppeld aan de backend: vul BACKEND_URL in.", "fout");
+    return;
+  }
+
+  toonStatus("Aanvraag wordt verstuurd...", "info");
+  verstuurAanvraag(aanvraag).then(function (antwoord) {
+    try {
+      toonGeluktPagina(antwoord);
+    } catch (fout) {
+      toonStatus("Uw aanvraag is ontvangen, maar de bevestigingspagina kon niet getoond worden; ververs de pagina.", "info");
+      return;
+    }
+    document.getElementById("aanvraagForm").reset();
+  }).catch(function (fout) {
+    var oorzaak = String((fout && fout.message) || "");
+    console.error("Backendfout bij verzenden: " + oorzaak);
+    /* Het formulier blijft gevuld: de aanvrager kan gewoon opnieuw
+       proberen, en de backend stuurt per aanvraag-id maar Ã©Ã©n mail. */
+    toonStatus(
+      (oorzaak === "timeout" ? "De verbinding met de backend is traag. " : "Versturen is niet gelukt. ") +
+      "Uw ingevulde gegevens zijn bewaard: probeer het over enkele seconden opnieuw, " +
+      "of mail uw gegevens naar secretariaat@hsvderuisvoorn.nl.",
+      "fout");
+  });
+}
+
+/* ------------------------------------------------------------
+   Datumvelden
+   ------------------------------------------------------------ */
+function stelVandaagIn() {
+  var veld = document.getElementById("datumAanvraag");
+  var kalender = document.getElementById("datumAanvraagKalender");
+  var d = new Date();
+  var tekst = (d.getDate() < 10 ? "0" : "") + d.getDate() + "-" +
+    (d.getMonth() + 1 < 10 ? "0" : "") + (d.getMonth() + 1) + "-" + d.getFullYear();
+  if (veld && !veld.value) { veld.value = tekst; }
+  if (kalender && !kalender.value) {
+    kalender.value = d.getFullYear() + "-" +
+      (d.getMonth() + 1 < 10 ? "0" : "") + (d.getMonth() + 1) + "-" +
+      (d.getDate() < 10 ? "0" : "") + d.getDate();
+  }
+}
+
+function koppelKalender(tekstId, kalenderId) {
+  var tekst = document.getElementById(tekstId);
+  var kalender = document.getElementById(kalenderId);
+  if (!tekst || !kalender) { return; }
+  kalender.addEventListener("change", function () {
+    if (!kalender.value) { return; }
+    var delen = kalender.value.split("-");
+    if (delen.length !== 3) { return; }
+    tekst.value = delen[2] + "-" + delen[1] + "-" + delen[0];
+  });
+}
+
+function zetDatumMasker(veld) {
+  if (!veld) { return; }
+  veld.addEventListener("input", function () {
+    var cijfers = veld.value.replace(/[^0-9]/g, "").slice(0, 8);
+    var uit = cijfers;
+    if (cijfers.length > 4) {
+      uit = cijfers.slice(0, 2) + "-" + cijfers.slice(2, 4) + "-" + cijfers.slice(4);
+    } else if (cijfers.length > 2) {
+      uit = cijfers.slice(0, 2) + "-" + cijfers.slice(2);
+    }
+    veld.value = uit;
+  });
+}
+
+/* ------------------------------------------------------------
+   Koppelen
+   ------------------------------------------------------------ */
+function koppelKlaarzetten() {
+  var form = document.getElementById("aanvraagForm");
+  if (!form) { return; }
+  form.addEventListener("submit", verstuurFormulier);
+  form.noValidate = true;
+
+  stelVandaagIn();
+  koppelKalender("datumAanvraag", "datumAanvraagKalender");
+  koppelKalender("geboortedatum", "geboortedatumKalender");
+  zetDatumMasker(document.getElementById("datumAanvraag"));
+  zetDatumMasker(document.getElementById("geboortedatum"));
+
+  /* nieuw: borg â‚¬25 Â· duplicaat: akkoord â‚¬5 en geen invalidenkaart */
+  var kostenEl = document.getElementById("duplicaatKosten");
+  var borgGroep = document.getElementById("borgGroep");
+  var duplicaatGroep = document.getElementById("duplicaatGroep");
+  var invalideVeld = document.getElementById("invalideVeld");
+
+  function toonSoortGroepen() {
+    var gekozen = document.querySelector('input[name="soortAanvraag"]:checked');
+    var duplicaat = !!(gekozen && gekozen.value === "duplicaat");
+    toonAls(kostenEl, duplicaat);
+    toonAls(borgGroep, !duplicaat);
+    toonAls(duplicaatGroep, duplicaat);
+    toonAls(invalideVeld, !duplicaat);
+    if (duplicaat) {
+      var b = document.getElementById("borgAkkoord");
+      if (b) { b.checked = false; }
+      document.querySelectorAll('input[name="invalidenkaart"]').forEach(function (r) { r.checked = false; });
+      var inr = document.getElementById("invalidenkaartNummer");
+      if (inr) { inr.value = ""; inr.required = false; }
+    } else {
+      var d = document.getElementById("duplicaatKostenAkkoord");
+      if (d) { d.checked = false; }
+    }
+  }
+  document.querySelectorAll('input[name="soortAanvraag"]').forEach(function (r) {
+    r.addEventListener("change", toonSoortGroepen);
+  });
+
+  var geenBericht = document.getElementById("geenInvalideBericht");
+  var invalideGroep = document.getElementById("invalideGroep");
+  var invalideNummer = document.getElementById("invalidenkaartNummer");
+
+  function toonInvalide() {
+    var gekozen = document.querySelector('input[name="invalidenkaart"]:checked');
+    var ja = !!(gekozen && gekozen.value === "ja");
+    var nee = !!(gekozen && gekozen.value === "nee");
+    toonAls(geenBericht, nee);
+    toonAls(invalideGroep, ja);
+    if (invalideNummer) {
+      invalideNummer.required = ja;
+      if (nee) { invalideNummer.value = ""; }
+    }
+  }
+  document.querySelectorAll('input[name="invalidenkaart"]').forEach(function (r) {
+    r.addEventListener("change", toonInvalide);
+  });
+
+  function herstel(checkbox, foutP) {
+    if (!checkbox) { return; }
+    checkbox.addEventListener("change", function () {
+      if (checkbox.checked && foutP) { foutP.hidden = true; }
+    });
+  }
+  herstel(document.getElementById("borgAkkoord"), document.getElementById("borgAkkoordFout"));
+  herstel(document.getElementById("duplicaatKostenAkkoord"), document.getElementById("duplicaatKostenAkkoordFout"));
+  herstel(document.getElementById("avgAkkoord"), document.getElementById("avgAkkoordFout"));
+  herstel(document.getElementById("voorwaardenCheckbox"), document.getElementById("voorwaardenCheckboxFout"));
+
+  /* betaallink kopiÃ«ren */
+  var kopieerbaar = document.querySelectorAll("[data-kopieer]");
+  Array.prototype.forEach.call(kopieerbaar, function (el) {
+    el.addEventListener("click", function () {
+      if (el.getAttribute("data-kopieer") !== "mollielink" || !laatsteMollieUrl) { return; }
+      kopieerTekst(laatsteMollieUrl).then(function (gelukt) {
+        toonMollieStatus(gelukt ? "Betaallink is gekopieerd." : "KopiÃ«ren lukte niet. Selecteer de link hierboven zelf.");
+      });
+    });
+    el.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
+        e.preventDefault();
+        el.click();
+      }
+    });
+  });
+
+  var vernieuwen = document.getElementById("mollieVernieuwenBtn");
+  if (vernieuwen) {
+    vernieuwen.addEventListener("click", function () { vraagBetaallinkOp(true); });
+  }
+
+  var terugStatusKnop = document.getElementById("terugStatusKnop");
+  if (terugStatusKnop) {
+    terugStatusKnop.addEventListener("click", controleerBetaalstatus);
+  }
+  controleerBetaalstatus();
+}
+
+function kopieerTekst(tekst) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    return navigator.clipboard.writeText(tekst).then(function () { return true; })
+      .catch(function () { return kopieerMetFallback(tekst); });
+  }
+  return Promise.resolve(kopieerMetFallback(tekst));
+}
+
+function kopieerMetFallback(tekst) {
+  try {
+    var veld = document.createElement("textarea");
+    veld.value = tekst;
+    veld.setAttribute("readonly", "");
+    veld.style.position = "fixed";
+    veld.style.opacity = "0";
+    document.body.appendChild(veld);
+    veld.select();
+    var gelukt = document.execCommand("copy");
+    document.body.removeChild(veld);
+    return gelukt;
+  } catch (fout) {
+    return false;
+  }
+}
+
+document.addEventListener("DOMContentLoaded", koppelKlaarzetten);
+
+</script>
+</body>
+</html>

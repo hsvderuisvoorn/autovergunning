@@ -1,0 +1,223 @@
+<header class="kop-balk">
+  <a class="kop-merk" href="https://hsvderuisvoorn.nl" title="Terug naar hsvderuisvoorn.nl">
+    <img src="https://images.foys.io/corespvu/club-sites/715119e0-2209-4ced-9eb6-a3b96e91d512?w=100" alt="HSV De Ruisvoorn" class="kop-logo">
+  </a>
+  <div class="kop-inner">
+    <h1>Aanvraag Autovergunning <span>HSV de Ruisvoorn Helden &mdash; nieuwe aanvraag of duplicaat</span></h1>
+  </div>
+</header>
+
+<div class="golf-band" aria-hidden="true">
+  <svg viewBox="0 0 1920 200" xmlns="http://www.w3.org/2000/svg" version="1.1" preserveAspectRatio="none">
+    <path d="M0 158L53.3 153C106.7 148 213.3 138 320 137.5C426.7 137 533.3 146 640 150.7C746.7 155.3 853.3 155.7 960 152.2C1066.7 148.7 1173.3 141.3 1280 144.3C1386.7 147.3 1493.3 160.7 1600 157C1706.7 153.3 1813.3 132.7 1866.7 122.3L1920 112L1920 0L1866.7 0C1813.3 0 1706.7 0 1600 0C1493.3 0 1386.7 0 1280 0C1173.3 0 1066.7 0 960 0C853.3 0 746.7 0 640 0C533.3 0 426.7 0 320 0C213.3 0 106.7 0 53.3 0L0 0Z" style="fill: var(--primary-color); fill-opacity: 0.2;"></path>
+    <path d="M0 97L53.3 100.7C106.7 104.3 213.3 111.7 320 113.7C426.7 115.7 533.3 112.3 640 112.2C746.7 112 853.3 115 960 114.5C1066.7 114 1173.3 110 1280 103C1386.7 96 1493.3 86 1600 79C1706.7 72 1813.3 68 1866.7 66L1920 64L1920 0L1866.7 0C1813.3 0 1706.7 0 1600 0C1493.3 0 1386.7 0 1280 0C1173.3 0 1066.7 0 960 0C853.3 0 746.7 0 640 0C533.3 0 426.7 0 320 0C213.3 0 106.7 0 53.3 0L0 0Z" style="fill: var(--primary-color); fill-opacity: 0.6;"></path>
+    <path d="M0 71L53.3 67.3C106.7 63.7 213.3 56.3 320 57.7C426.7 59 533.3 69 640 69.3C746.7 69.7 853.3 60.3 960 57.3C1066.7 54.3 1173.3 57.7 1280 59.3C1386.7 61 1493.3 61 1600 56.7C1706.7 52.3 1813.3 43.7 1866.7 39.3L1920 35L1920 0L1866.7 0C1813.3 0 1706.7 0 1600 0C1493.3 0 1386.7 0 1280 0C1173.3 0 1066.7 0 960 0C853.3 0 746.7 0 640 0C533.3 0 426.7 0 320 0C213.3 0 106.7 0 53.3 0L0 0Z" style="fill: var(--primary-color); fill-opacity: 1;"></path>
+  </svg>
+</div>
+
+<main class="inhoud">
+  <section class="intro-blok">
+    <h2>Aanvragen is zo geregeld</h2>
+    <p>Vul onderstaand formulier in om een Autovergunning of een duplicaat daarvan aan te vragen. Bekijk vooraf de <strong>voorwaarden</strong>; alleen bij een <strong>eerste</strong> aanvraag is een <strong>geldige invalidenkaart minimaal verplicht</strong>.</p>
+    <p>Na verzenden gaat uw aanvraag meteen naar het <strong>secretariaat</strong> van de vereniging. Bij een duplicaat betaalt u &euro;5 met iDEAL zodra u op de volgende pagina bent.</p>
+  </section>
+
+  <section id="terugVanBetaling" class="terug-blok" hidden>
+    <span class="terug-icoon" id="terugIcoon" aria-hidden="true"></span>
+    <div class="terug-inhoud">
+      <p class="betaal-titel" id="terugTitel">Terug van het betalen</p>
+      <p id="terugTekst">Wij controleren uw betaling. Dit kan enkele seconden duren.</p>
+      <p class="terug-acties">
+        <button type="button" id="terugStatusKnop">Controleer nu</button>
+        <a id="terugNaarSite" class="knop-secundair" href="https://hsvderuisvoorn.nl" hidden>Terug naar de website</a>
+      </p>
+    </div>
+  </section>
+
+  <form id="aanvraagForm" novalidate>
+
+    <fieldset>
+      <legend>Type aanvraag</legend>
+      <div class="veld-inner">
+
+        <div class="veld-groep">
+          <span class="veld-titel">Wat wilt u aanvragen? <span class="verplicht-ster">*</span></span>
+          <div class="radio-lijst">
+            <label class="radio-optie"><input type="radio" name="soortAanvraag" value="nieuw" required> Aanvraag nieuwe vergunning</label>
+            <label class="radio-optie"><input type="radio" name="soortAanvraag" value="duplicaat" required> Aanvraag duplicaat vergunning</label>
+          </div>
+          <p id="duplicaatKosten" class="hulp-tekst" hidden>Een duplicaat vergunning kost <strong>&euro;5</strong>; dit bedrag betaalt u met iDEAL nadat u de aanvraag heeft verstuurd.</p>
+        </div>
+
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Gegevens aanvrager</legend>
+      <div class="veld-inner">
+
+        <div class="veld-groep">
+          <label for="datumAanvraag">Datum aanvraag <span class="verplicht-ster">*</span></label>
+          <div class="datum-invoer">
+            <input type="text" id="datumAanvraag" name="datumAanvraag" placeholder="dd-mm-jjjj" inputmode="numeric" pattern="[0-9]{1,2}-[0-9]{1,2}-[0-9]{4}" autocomplete="off" required>
+            <input type="date" id="datumAanvraagKalender" class="kalender-invoer" aria-label="Kies de datum aanvraag via de kalender">
+          </div>
+          <p class="hulp-tekst">Typ de datum zelf in (dd-mm-jjjj) of kies hem via de kalender.</p>
+        </div>
+
+        <div class="veld-groep">
+          <label for="voorletters">Voorletters <span class="verplicht-ster">*</span></label>
+          <input type="text" id="voorletters" name="voorletters" autocomplete="honorific-prefix" placeholder="bijv. J.P." required>
+        </div>
+
+        <div class="veld-groep">
+          <label for="voornaam">Voornaam <span class="verplicht-ster">*</span></label>
+          <input type="text" id="voornaam" name="voornaam" autocomplete="given-name" required>
+        </div>
+
+        <div class="veld-groep">
+          <label for="achternaam">Achternaam <span class="verplicht-ster">*</span></label>
+          <input type="text" id="achternaam" name="achternaam" autocomplete="family-name" required>
+        </div>
+
+        <div class="veld-groep">
+          <label for="geboortedatum">Geboortedatum <span class="verplicht-ster">*</span></label>
+          <div class="datum-invoer">
+            <input type="text" id="geboortedatum" name="geboortedatum" placeholder="dd-mm-jjjj" inputmode="numeric" pattern="[0-9]{1,2}-[0-9]{1,2}-[0-9]{4}" autocomplete="off" required>
+            <input type="date" id="geboortedatumKalender" class="kalender-invoer" aria-label="Kies de geboortedatum via de kalender">
+          </div>
+          <p class="hulp-tekst">Typ de datum zelf in (dd-mm-jjjj) of kies hem via de kalender.</p>
+        </div>
+
+        <div class="veld-groep">
+          <label for="vispasnummer">Vispasnummer <span class="verplicht-ster">*</span></label>
+          <input type="text" id="vispasnummer" name="vispasnummer" autocomplete="off" required>
+        </div>
+
+        <div class="veld-groep">
+          <label for="emailAdres">E-mailadres <span class="verplicht-ster">*</span></label>
+          <input type="email" id="emailAdres" name="emailAdres" autocomplete="email" placeholder="bijv. naam@voorbeeld.nl" required>
+          <p class="hulp-tekst">Hierop bereikt het secretariaat u over deze aanvraag.</p>
+        </div>
+
+      </div>
+    </fieldset>
+
+    <fieldset id="invalideVeld">
+      <legend>Invalidenkaart</legend>
+      <div class="veld-inner">
+
+        <div class="veld-groep">
+          <span class="veld-titel">Heeft u een invalidenkaart? <span class="verplicht-ster">*</span></span>
+          <div class="radio-lijst">
+            <label class="radio-optie"><input type="radio" name="invalidenkaart" value="ja"> Ja</label>
+            <label class="radio-optie"><input type="radio" name="invalidenkaart" value="nee"> Nee</label>
+          </div>
+        </div>
+
+        <div class="veld-groep" id="geenInvalideBericht" hidden>
+          <p class="blokkeer-fout">Een invalidenkaart is minimaal verplicht voor een aanvraag voor een Autovergunning.<br><strong>U komt niet in aanmerking voor een Autovergunning.</strong></p>
+        </div>
+
+        <div class="veld-groep" id="invalideGroep" hidden>
+          <label for="invalidenkaartNummer">Nummer invalidenkaart <span class="verplicht-ster">*</span></label>
+          <input type="text" id="invalidenkaartNummer" name="invalidenkaartNummer" autocomplete="off" placeholder="Vul het nummer van uw invalidenkaart in">
+        </div>
+
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Akkoord en voorwaarden</legend>
+      <div class="veld-inner">
+
+        <div class="voorwaarden-blok">
+          <p class="voorwaarden-slogan">Deze vergunning is en blijft eigendom van de vereniging</p>
+          <ul class="voorwaarden-lijst">
+            <li>De vergunning is alleen geldig in het jaar vermeld op deze vergunning.</li>
+            <li>De vergunning is alleen geldig in combinatie met een geldige vispas voorzien van logo van HSV de Ruisvoorn Helden.</li>
+            <li>De vergunning is alleen geldig als die is voorzien van de naam en vispasnummer van de vergunninghouder zoals vermeld op de VISpas</li>
+            <li>Zonder vergunning is toetreden tot het terrein verboden</li>
+            <li>De verplichte rijrichting volgt (mits anders aangegeven).</li>
+            <li>Het terrein alleen betreden voor uitoefening van uw sport, werkzaamheden, of bestuurstaken.</li>
+            <li>De poort gesloten wordt zodra u het terrein op of af gaat.</li>
+            <li>Indien van toepassing alle aanwijzingen van de wedstrijdcommissie worden opgevolgd.</li>
+          </ul>
+          <p>De vergunning dient duidelijk zichtbaar en leesbaar voor de voorruit van uw auto te liggen.</p>
+          <p>U kunt de vereniging niet aansprakelijk stellen voor eventuele schade aan uw voertuig door welke oorzaak dan ook.</p>
+        </div>
+
+        <div class="veld-groep" id="borgGroep">
+          <label class="akkoord-optie">
+            <input type="checkbox" id="borgAkkoord" name="borgAkkoord">
+            <span>Ik ga akkoord dat er <strong>&euro;25 borg voor de sleutel</strong> in rekening wordt gebracht. <span class="verplicht-ster">*</span></span>
+          </label>
+          <p id="borgAkkoordFout" class="veld-fout" hidden>U komt niet in aanmerking: het akkoord dat er &euro;25 borg voor de sleutel in rekening wordt gebracht is minimaal verplicht.</p>
+        </div>
+
+        <div class="veld-groep" id="duplicaatGroep" hidden>
+          <label class="akkoord-optie">
+            <input type="checkbox" id="duplicaatKostenAkkoord" name="duplicaatKostenAkkoord">
+            <span>Ik ga akkoord dat er <strong>&euro;5</strong> voor de duplicaat vergunning in rekening wordt gebracht. <span class="verplicht-ster">*</span></span>
+          </label>
+          <p id="duplicaatKostenAkkoordFout" class="veld-fout" hidden>U komt niet in aanmerking: het akkoord dat er &euro;5 in rekening wordt gebracht is minimaal verplicht.</p>
+        </div>
+
+        <div class="veld-groep">
+          <label class="akkoord-optie">
+            <input type="checkbox" id="avgAkkoord" name="avgAkkoord">
+            <span>Ik ga akkoord dat HSV De Ruisvoorn mijn gegevens gebruikt om deze aanvraag te verwerken, conform de AVG. <span class="verplicht-ster">*</span></span>
+          </label>
+          <p id="avgAkkoordFout" class="veld-fout" hidden>Het akkoord met de AVG is minimaal verplicht om de aanvraag te kunnen verzenden.</p>
+        </div>
+
+        <div class="veld-groep">
+          <label class="akkoord-optie">
+            <input type="checkbox" id="voorwaardenCheckbox" name="voorwaardenCheckbox">
+            <span>Ik ga akkoord met de voorwaarden van de Autovergunning. <span class="verplicht-ster">*</span></span>
+          </label>
+          <p id="voorwaardenCheckboxFout" class="veld-fout" hidden>Het accepteren van de voorwaarden is minimaal verplicht om de aanvraag te kunnen verzenden.</p>
+        </div>
+
+      </div>
+    </fieldset>
+
+    <div class="verstuur-balk">
+      <button type="submit" id="verstuurBtn">Aanvraag versturen</button>
+      <p id="statusTekst">Nog niet verzonden.</p>
+    </div>
+
+  </form>
+
+  <section id="geluktPagina" class="bedankt-pagina" hidden>
+    <div class="bedankt-inhoud">
+      <h2 class="bedankt-titel">Aanvraag ontvangen</h2>
+
+      <div id="geluktNieuw" hidden>
+        <p>Uw aanvraag voor een Autovergunning is in goede orde ontvangen en doorgestuurd naar het secretariaat.</p>
+        <div class="belangrijk">
+          <p>De <strong>definitieve toekenning</strong> wordt besloten door het <strong>bestuur</strong> op de <strong>eerstvolgende bestuursvergadering</strong>, op basis van het aantal <strong>beschikbare sleutels</strong>. De borg van &euro;25 voor de sleutel wordt pas bij toekenning in rekening gebracht.</p>
+        </div>
+      </div>
+
+      <div id="geluktDuplicaat" hidden>
+        <p>Wij hebben uw aanvraag voor een duplicaat Autovergunning ontvangen en doorgestuurd naar het secretariaat. Wij sturen de duplicaat <strong>zo snel mogelijk toe</strong>, nadat u de kosten van <strong>&euro;5</strong> heeft voldaan.</p>
+
+        <div id="mollieBlok" class="betaal-blok" hidden>
+          <p class="betaal-titel">Betalen met uw eigen bank (iDEAL)</p>
+          <p>Tik op de knop hieronder, kies uw bank en log in. Daarna wordt u teruggestuurd naar deze pagina en weten wij direct dat u betaald heeft.</p>
+          <a id="mollieKnop" class="betalen-knop" href="#" target="_blank" rel="noopener">Betaal &euro;5 met iDEAL</a>
+          <p id="mollieStatus" class="hulp-tekst" hidden></p>
+          <p class="hulp-tekst">Lukt het niet via de knop? Tik dan op deze link om de betaallink te openen:<br>
+            <span id="mollieUrlTekst" class="kopieerbaar" data-kopieer="mollielink" role="button" tabindex="0" title="Tik om de betaallink te kopi&euml;ren">&hellip;</span>
+          </p>
+          <p class="hulp-tekst"><button type="button" id="mollieVernieuwenBtn" class="link-knop">Link verlopen of niet gelukt? Vraag een nieuwe betaallink</button></p>
+        </div>
+      </div>
+
+      <p id="bedanktReferentie" class="hulp-tekst" hidden>Uw referentie: <strong>&hellip;</strong></p>
+
+      <p>Heeft u vragen? Stuur die naar <a href="mailto:secretariaat@hsvderuisvoorn.nl">secretariaat@hsvderuisvoorn.nl</a>.</p>
+    </div>
+  </section>
+</main>
