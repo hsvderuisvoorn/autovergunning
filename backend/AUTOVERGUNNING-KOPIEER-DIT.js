@@ -245,10 +245,10 @@ function stuurOntvangstmelding(blad, rij) {
   var rijen = [
     ["Soort aanvraag", duplicaat ? "Duplicaat vergunning" : "Nieuwe vergunning"],
     ["Referentie", String(rij[15] || "").trim()],
-    ["Datum aanvraag", String(rij[0] || "")],
+    ["Datum aanvraag", datumTekst(rij[0])],
     ["Naam", naam],
     ["E-mailadres", String(rij[20] || "").trim()],
-    ["Geboortedatum", String(rij[5] || "")],
+    ["Geboortedatum", datumTekst(rij[5])],
     ["Vispasnummer", String(rij[6] || "").trim()],
     ["Invalidenkaart", duplicaat ? "niet van toepassing" : invalide],
     ["Akkoord voorwaarden", String(rij[12] || "").trim() === "ja" ? "ja" : "nee"]
@@ -259,7 +259,7 @@ function stuurOntvangstmelding(blad, rij) {
   } else {
     rijen.push(["Akkoord borg EUR25", String(rij[10] || "").trim() === "ja" ? "ja" : "nee"]);
   }
-  rijen.push(["Ingediend op", String(rij[13] || "")]);
+  rijen.push(["Ingediend op", datumTekst(rij[13], true)]);
 
   var url = "";
   try { url = String(blad.getParent().getUrl() || ""); } catch (foutUrl) { url = ""; }
@@ -312,7 +312,7 @@ function stuurBetaalmelding(blad, rij) {
     ["E-mailadres", String(waarden[20] || "").trim()],
     ["Vispasnummer", String(waarden[6] || "").trim()],
     ["Bedrag", "EUR 5,00"],
-    ["Betaling gemeld op", String(waarden[17] || vandaagTekst())],
+    ["Betaling gemeld op", datumTekst(waarden[17], true) || vandaagTekst()],
     ["Status", "betaald - duplicaat kan worden opgestuurd"]
   ];
   var intro = "De betaling van de duplicaat-aanvraag is binnen. "
@@ -1321,6 +1321,26 @@ function nlDatum(waarde) {
   var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(waarde || "").trim());
   if (!m) return waarde || "";
   return m[3] + "-" + m[2] + "-" + m[1];
+}
+
+/* Maakt van een waarde uit de sheet een nette Europese datum.
+   Sheets geeft datums vaak als Date-object terug; String() zou dan
+   "Sat Oct 10 2026 ..." opleveren. Date -> dd-mm-jjjj (of dd-mm-jjjj
+   uu:mm met tijd), ISO-tekst wordt omgezet, al het andere blijft. */
+function datumTekst(waarde, metTijd) {
+  if (waarde === null || waarde === undefined || waarde === "") { return ""; }
+  if (Object.prototype.toString.call(waarde) === "[object Date]" &&
+      !isNaN(waarde.getTime())) {
+    return Utilities.formatDate(waarde, Session.getScriptTimeZone(),
+      metTijd ? "dd-MM-yyyy HH:mm" : "dd-MM-yyyy");
+  }
+  var s = String(waarde).trim();
+  var m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/.exec(s);
+  if (m) {
+    return m[3] + "-" + m[2] + "-" + m[1] +
+      (metTijd && m[4] ? " " + m[4] + ":" + m[5] : "");
+  }
+  return s;
 }
 
 /* ------------------------------------------------------------

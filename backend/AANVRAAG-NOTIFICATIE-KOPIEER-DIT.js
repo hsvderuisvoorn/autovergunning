@@ -320,6 +320,26 @@ function testInstellingen() {
 var NOTIFICATIE_INTRO = "Er is een nieuwe aanvraag voor een Autovergunning "
   + "binnengekomen via het formulier op de website.";
 
+/* Maakt van een waarde uit de sheet een nette Europese datum.
+   Sheets geeft datums vaak als Date-object terug; String() zou dan
+   "Sat Oct 10 2026 ..." opleveren. Date -> dd-mm-jjjj (of dd-mm-jjjj
+   uu:mm met tijd), ISO-tekst wordt omgezet, al het andere blijft. */
+function datumTekst(waarde, metTijd) {
+  if (waarde === null || waarde === undefined || waarde === "") { return ""; }
+  if (Object.prototype.toString.call(waarde) === "[object Date]" &&
+      !isNaN(waarde.getTime())) {
+    return Utilities.formatDate(waarde, Session.getScriptTimeZone(),
+      metTijd ? "dd-MM-yyyy HH:mm" : "dd-MM-yyyy");
+  }
+  var s = String(waarde).trim();
+  var m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/.exec(s);
+  if (m) {
+    return m[3] + "-" + m[2] + "-" + m[1] +
+      (metTijd && m[4] ? " " + m[4] + ":" + m[5] : "");
+  }
+  return s;
+}
+
 /* Bouwt de regels van de melding op basis van een rij uit het tabblad.
    Levert een lijst [naam, waarde] op, zodat dezelfde gegevens zowel als
    platte tekst als in de HTML-mail gebruikt kunnen worden. */
@@ -335,10 +355,10 @@ function bouwMeldingRijen(r, sheetUrl) {
   var rijen = [];
   rijen.push(["Soort aanvraag", duplicaat ? "Duplicaat vergunning" : "Nieuwe vergunning"]);
   rijen.push(["Referentie", String(r[15] || "").trim()]);
-  rijen.push(["Datum aanvraag", String(r[0] || "")]);
+  rijen.push(["Datum aanvraag", datumTekst(r[0])]);
   rijen.push(["Naam", naam]);
   rijen.push(["E-mailadres", String(r[20] || "").trim()]);
-  rijen.push(["Geboortedatum", String(r[5] || "")]);
+  rijen.push(["Geboortedatum", datumTekst(r[5])]);
   rijen.push(["Vispasnummer", String(r[6] || "").trim()]);
   rijen.push(["Invalidenkaart", duplicaat ? "niet van toepassing" : invalide]);
   rijen.push(["Akkoord voorwaarden", String(r[12] || "").trim() === "ja" ? "ja" : "nee"]);
@@ -348,7 +368,7 @@ function bouwMeldingRijen(r, sheetUrl) {
   } else {
     rijen.push(["Akkoord borg EUR25", String(r[10] || "").trim() === "ja" ? "ja" : "nee"]);
   }
-  rijen.push(["Ingediend op", String(r[13] || "")]);
+  rijen.push(["Ingediend op", datumTekst(r[13], true)]);
   if (sheetUrl) { rijen.push(["De aanvraag in de sheet", sheetUrl]); }
   return rijen;
 }
