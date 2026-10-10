@@ -784,8 +784,14 @@ function haalOfMaakBetaallink(ref, nieuw, bekend) {
 function verwerkMollieWebhook(inhoud) {
   var velden = Utilities.parseQueryString(String(inhoud || ""));
   var id = String(velden["id"] || "").trim();
-  var status = String(velden["status"] || "").trim().toLowerCase();
   if (!id) { return false; }
+  /* De webhook van Mollie bevat alléén "id" (geen status). De status
+     halen we daarom zelf op bij Mollie voordat we iets wegschrijven;
+     anders bleef de betaling eeuwig op "open" staan. */
+  var status = String(velden["status"] || "").trim().toLowerCase();
+  if (!status) {
+    status = String(mollieBetaalstatus(id) || "").trim().toLowerCase();
+  }
   var blad = koppelBetalingenTabblad();
   var laatste = blad.getLastRow();
   if (laatste < 2) { return false; }
@@ -796,8 +802,8 @@ function verwerkMollieWebhook(inhoud) {
   for (var i = 0; i < ids.length; i++) {
     if (String(ids[i][0] || "").trim() === id) {
       var rij = i + 2;
-      schrijfBetalingStatus(rij, status);
-      if (status === "paid") {
+      if (status) { schrijfBetalingStatus(rij, status); }
+      if (status === "paid" || status === "authorized") {
         var ref = String(blad.getRange(rij, 1).getValue() || "").trim();
         if (ref) {
           markeerBetalingGemeld(koppelSpreadsheet().blad, ref);
