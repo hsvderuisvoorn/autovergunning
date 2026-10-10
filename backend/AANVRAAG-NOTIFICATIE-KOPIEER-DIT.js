@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    AANVRAAG-NOTIFICATIE  -  autovergunning HSV De Ruisvoorn
    ------------------------------------------------------------
    DIT BESTAND HOORT IN EEN EIGEN PROJECT VAN HET GMAIL-ACCOUNT
@@ -23,7 +23,7 @@
 
    ROBUUSTHEID (zelfde patroon als de opgave-timer)
    - LockService: voorkomt dat twee runs tegelijk draaien.
-   - De hele run wordt bij een tijdelijke fout nog 1× opnieuw
+   - De hele run wordt bij een tijdelijke fout nog 1Ã— opnieuw
      geprobeerd (4 seconden wachten) voordat er wordt gemeld.
    - Per rij wordt de mail met maximaal 2 pogingen verstuurd.
    - Elke fout komt in kolom T te staan als "FOUT x/3: reden".
@@ -67,7 +67,7 @@ var SLUITLEUTEL = "verstuurOnverzondenAanvragen.lock";
    mail sturen, waardoor het dagquota van Gmail leegloopt. */
 var MAX_POGINGEN_PER_RIJ = 3;
 var MAILMARK_KOP = "Mail verstuurd";
-var TIMER_FUNCTIE = "verstuurOnverzudenMails";
+var TIMER_FUNCTIE = "verstuurOnverzondenMails";
 var TIMER_ELKE_MINUTEN = 5;
 
 /* ------------------------------------------------------------
@@ -82,7 +82,7 @@ var TIMER_ELKE_MINUTEN = 5;
    stilletjes geen mail meer kon binnenkomen zonder dat er ergens een
    fout zichtbaar werd.
 
-   Voer deze functie één keer uit na het plakken van het script.
+   Voer deze functie Ã©Ã©n keer uit na het plakken van het script.
    Daarna draait de timer vanzelf. Tweede keer uitvoeren is
    onschadelijk: dan zegt het script alleen dat de timer er al is.
    ------------------------------------------------------------ */
@@ -125,7 +125,7 @@ function verstuurOnverzondenMails() {
   }
 }
 
-/* Probeert de hele run nog 1× bij een tijdelijke fout (bijv. een
+/* Probeert de hele run nog 1Ã— bij een tijdelijke fout (bijv. een
    Google-serverfout bij het openen van de sheet). Bij een fout die
    blijvend is (quota, geen toegang, ongeldig adres) is opnieuw
    proberen zinloos en wordt meteen teruggegeven. */
@@ -162,11 +162,11 @@ function isBlijvendeFout(fout) {
    7  H  invalidenkaart (ja/nee)
    8  I  invalidenkaartnummer
    9  J  akkoord voorwaarden (radio)
-   10 K  borg €25 sleutel
+   10 K  borg â‚¬25 sleutel
    11 L  akkoord AVG
    12 M  akkoord voorwaarden (checkbox)
    13 N  ingediend op
-   14 O  akkoord €5 duplicaat
+   14 O  akkoord â‚¬5 duplicaat
    15 P  betaalreferentie
    16 Q  betaling gemeld
    17 R  betaling gemeld op
@@ -261,7 +261,7 @@ function verwerkOnverzondenMails() {
 }
 
 /* ------------------------------------------------------------
-   ZELFTEST (één klik in de editor): controleert of de juiste
+   ZELFTEST (Ã©Ã©n klik in de editor): controleert of de juiste
    spreadsheet wordt gevonden, telt de nog te mailen rijen en
    stuurt een testmail. Het resultaat zie je in het log.
    ------------------------------------------------------------ */
@@ -316,7 +316,7 @@ function testInstellingen() {
   return log;
 }
 
-/* Bouwt de meldingstekst op basis van één rij uit het tabblad. */
+/* Bouwt de meldingstekst op basis van Ã©Ã©n rij uit het tabblad. */
 function bouwMeldingTekst(r, sheetUrl) {
   var soort = String(r[1] || "").trim();
   var displicaat = soort === "duplicaat";
@@ -331,13 +331,13 @@ function bouwMeldingTekst(r, sheetUrl) {
   regels.push("Geboortedatum:   " + String(r[5] || ""));
   regels.push("Vispasnummer:    " + (String(r[6] || "").trim() || "-"));
   if (displicaat) {
-    regels.push("Akkoord €5:      " + (String(r[14] || "").trim() === "ja" ? "akkoord" : "niet"));
+    regels.push("Akkoord â‚¬5:      " + (String(r[14] || "").trim() === "ja" ? "akkoord" : "niet"));
     regels.push("Betaalreferentie:" + (String(r[15] || "").trim() || "-"));
     regels.push("Betaling gemeld: " + (String(r[16] || "").trim() === "ja" ? "ja (" + String(r[17] || "") + ")" : "nog niet"));
   } else {
     regels.push("Invalidenkaart:  " + (String(r[7] || "").trim() || "onbekend") +
                 (String(r[8] || "").trim() ? " (" + String(r[8]) + ")" : ""));
-    regels.push("Borg sleutel €25: " + (String(r[10] || "").trim() === "ja" ? "akkoord" : "niet"));
+    regels.push("Borg sleutel â‚¬25: " + (String(r[10] || "").trim() === "ja" ? "akkoord" : "niet"));
   }
   regels.push("Akkoord voorwaarden: " + (String(r[12] || "").trim() === "ja" ? "ja" : "nee"));
   regels.push("Ingediend op:    " + String(r[13] || ""));
