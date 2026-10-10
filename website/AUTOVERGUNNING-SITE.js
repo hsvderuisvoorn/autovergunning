@@ -120,8 +120,13 @@ function doPost(e) {
   var p = (e && e.parameter) || {};
   var id = String(p.id || "").trim();
   if (!id && e && e.postData && e.postData.contents) {
-    var velden = Utilities.parseQueryString(String(e.postData.contents));
-    id = String(velden["id"] || "").trim();
+    var stukken = String(e.postData.contents).split("&");
+    for (var i = 0; i < stukken.length; i++) {
+      var kv = stukken[i].split("=");
+      if (decodeURIComponent(kv[0]) === "id") {
+        id = String(decodeURIComponent(kv.slice(1).join("=")) || "").trim();
+      }
+    }
   }
   try { verwerkWebhook(id); } catch (fout) { /* stil */ }
   return tekstOutput("OK");

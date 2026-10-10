@@ -779,10 +779,28 @@ function haalOfMaakBetaallink(ref, nieuw, bekend) {
   }
 }
 
+/* Ontleedt een formulier-body ("id=tr_...&status=paid"). Bewust zonder
+   Utilities.parseQueryString: die functie bestaat niet in Apps Script en
+   liet de Mollie-webhook elke keer meteen met een fout stoppen. */
+function formVelden(inhoud) {
+  var velden = {};
+  var stukken = String(inhoud || "").split("&");
+  for (var i = 0; i < stukken.length; i++) {
+    if (!stukken[i]) { continue; }
+    var d = stukken[i].indexOf("=");
+    var k = d >= 0 ? stukken[i].substring(0, d) : stukken[i];
+    var v = d >= 0 ? stukken[i].substring(d + 1) : "";
+    try { k = decodeURIComponent(k.replace(/\+/g, " ")); } catch (e) {}
+    try { v = decodeURIComponent(v.replace(/\+/g, " ")); } catch (e) {}
+    velden[k] = v;
+  }
+  return velden;
+}
+
 /* Webhook van Mollie: payment-id + status. Zet bij 'paid' ook
    'Betaling gemeld' in het tabblad "Aanvragen". */
 function verwerkMollieWebhook(inhoud) {
-  var velden = Utilities.parseQueryString(String(inhoud || ""));
+  var velden = formVelden(inhoud);
   var id = String(velden["id"] || "").trim();
   if (!id) { return false; }
   /* De webhook van Mollie bevat alléén "id" (geen status). De status
