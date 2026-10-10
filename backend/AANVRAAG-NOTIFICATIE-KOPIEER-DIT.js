@@ -23,7 +23,7 @@
 
    ROBUUSTHEID (zelfde patroon als de opgave-timer)
    - LockService: voorkomt dat twee runs tegelijk draaien.
-   - De hele run wordt bij een tijdelijke fout nog 1Ã— opnieuw
+   - De hele run wordt bij een tijdelijke fout nog 1x opnieuw
      geprobeerd (4 seconden wachten) voordat er wordt gemeld.
    - Per rij wordt de mail met maximaal 2 pogingen verstuurd.
    - Elke fout komt in kolom T te staan als "FOUT x/3: reden".
@@ -82,7 +82,7 @@ var TIMER_ELKE_MINUTEN = 5;
    stilletjes geen mail meer kon binnenkomen zonder dat er ergens een
    fout zichtbaar werd.
 
-   Voer deze functie Ã©Ã©n keer uit na het plakken van het script.
+   Voer deze functie een keer uit na het plakken van het script.
    Daarna draait de timer vanzelf. Tweede keer uitvoeren is
    onschadelijk: dan zegt het script alleen dat de timer er al is.
    ------------------------------------------------------------ */
@@ -125,7 +125,7 @@ function verstuurOnverzondenMails() {
   }
 }
 
-/* Probeert de hele run nog 1Ã— bij een tijdelijke fout (bijv. een
+/* Probeert de hele run nog 1x bij een tijdelijke fout (bijv. een
    Google-serverfout bij het openen van de sheet). Bij een fout die
    blijvend is (quota, geen toegang, ongeldig adres) is opnieuw
    proberen zinloos en wordt meteen teruggegeven. */
@@ -162,11 +162,11 @@ function isBlijvendeFout(fout) {
    7  H  invalidenkaart (ja/nee)
    8  I  invalidenkaartnummer
    9  J  akkoord voorwaarden (radio)
-   10 K  borg â‚¬25 sleutel
+   10 K  borg EUR25 sleutel
    11 L  akkoord AVG
    12 M  akkoord voorwaarden (checkbox)
    13 N  ingediend op
-   14 O  akkoord â‚¬5 duplicaat
+   14 O  akkoord EUR5 duplicaat
    15 P  betaalreferentie
    16 Q  betaling gemeld
    17 R  betaling gemeld op
@@ -236,14 +236,16 @@ function verwerkOnverzondenMails() {
     }
 
     try {
-      var tekst = bouwMeldingTekst(r, sheetUrl);
       var naam = String(r[4] || "").trim() || "aanvrager";
       var soort = String(r[1] || "").trim();
       var onderwerp = "Autovergunning " +
         (soort === "duplicaat" ? "duplicaat" : "aanvraag") + " ontvangen: " + naam;
+      var rijen = bouwMeldingRijen(r, sheetUrl);
+      var tekst = meldingTekstUitRijen(rijen);
+      var html = mailHtml(onderwerp, NOTIFICATIE_INTRO, rijen);
 
       for (var a = 0; a < MELDINGADRESSEN.length; a++) {
-        verzendMetRetry(MELDINGADRESSEN[a], onderwerp, tekst);
+        verzendMetRetry(MELDINGADRESSEN[a], onderwerp, tekst, html);
       }
       blad.getRange(i + 1, MAILMARK_KOLOM + 1).setValue("ja");
       verzonden++;
@@ -261,9 +263,9 @@ function verwerkOnverzondenMails() {
 }
 
 /* ------------------------------------------------------------
-   ZELFTEST (Ã©Ã©n klik in de editor): controleert of de juiste
-   spreadsheet wordt gevonden, telt de nog te mailen rijen en
-   stuurt een testmail. Het resultaat zie je in het log.
+   Testfunctie: laat zien welk bestand/tabblad gevonden is, hoeveel
+   rijen nog gemaild moeten worden en stuurt een testmail naar het
+   eerste meldingsadres. Draai deze los vanuit de editor.
    ------------------------------------------------------------ */
 function testInstellingen() {
   var uit = [];
@@ -306,8 +308,6 @@ function testInstellingen() {
 
   var log = uit.join("\n");
   Logger.log(log);
-  /* Bij een vol dagquota zou de zelftest zelf op een fout stuiten en
-     dan niets tonen. */
   if (MailApp.getRemainingDailyQuota() > 0) {
     MailApp.sendEmail(MELDINGADRESSEN[0], "Zelftest autovergunning-notificatie", log);
   } else {
@@ -316,47 +316,99 @@ function testInstellingen() {
   return log;
 }
 
-/* Bouwt de meldingstekst op basis van Ã©Ã©n rij uit het tabblad. */
-function bouwMeldingTekst(r, sheetUrl) {
+/* Vaste aanhef boven de meldingsmail. */
+var NOTIFICATIE_INTRO = "Er is een nieuwe aanvraag voor een Autovergunning "
+  + "binnengekomen via het formulier op de website.";
+
+/* Bouwt de regels van de melding op basis van een rij uit het tabblad.
+   Levert een lijst [naam, waarde] op, zodat dezelfde gegevens zowel als
+   platte tekst als in de HTML-mail gebruikt kunnen worden. */
+function bouwMeldingRijen(r, sheetUrl) {
   var soort = String(r[1] || "").trim();
-  var displicaat = soort === "duplicaat";
+  var duplicaat = soort === "duplicaat";
   var naam = [r[2], r[3], r[4]].join(" ").replace(/\s+/g, " ").trim();
-
-  var regels = [];
-  regels.push("Er is een nieuwe aanvraag voor een Autovergunning binnengekomen.");
-  regels.push("");
-  regels.push("Datum aanvraag:  " + String(r[0] || ""));
-  regels.push("Soort:           " + (displicaat ? "Duplicaat vergunning" : "Nieuwe vergunning"));
-  regels.push("Naam:            " + naam);
-  regels.push("Geboortedatum:   " + String(r[5] || ""));
-  regels.push("Vispasnummer:    " + (String(r[6] || "").trim() || "-"));
-  if (displicaat) {
-    regels.push("Akkoord â‚¬5:      " + (String(r[14] || "").trim() === "ja" ? "akkoord" : "niet"));
-    regels.push("Betaalreferentie:" + (String(r[15] || "").trim() || "-"));
-    regels.push("Betaling gemeld: " + (String(r[16] || "").trim() === "ja" ? "ja (" + String(r[17] || "") + ")" : "nog niet"));
-  } else {
-    regels.push("Invalidenkaart:  " + (String(r[7] || "").trim() || "onbekend") +
-                (String(r[8] || "").trim() ? " (" + String(r[8]) + ")" : ""));
-    regels.push("Borg sleutel â‚¬25: " + (String(r[10] || "").trim() === "ja" ? "akkoord" : "niet"));
+  var invalide = String(r[7] || "").trim() || "onbekend";
+  if (String(r[8] || "").trim()) {
+    invalide += " (" + String(r[8]) + ")";
   }
-  regels.push("Akkoord voorwaarden: " + (String(r[12] || "").trim() === "ja" ? "ja" : "nee"));
-  regels.push("Ingediend op:    " + String(r[13] || ""));
-  regels.push("");
-  regels.push("Bekijk de aanvraag in het overzicht:");
-  regels.push(sheetUrl);
 
-  return regels.join("\n");
+  var rijen = [];
+  rijen.push(["Soort aanvraag", duplicaat ? "Duplicaat vergunning" : "Nieuwe vergunning"]);
+  rijen.push(["Referentie", String(r[15] || "").trim()]);
+  rijen.push(["Datum aanvraag", String(r[0] || "")]);
+  rijen.push(["Naam", naam]);
+  rijen.push(["E-mailadres", String(r[20] || "").trim()]);
+  rijen.push(["Geboortedatum", String(r[5] || "")]);
+  rijen.push(["Vispasnummer", String(r[6] || "").trim()]);
+  rijen.push(["Invalidenkaart", duplicaat ? "niet van toepassing" : invalide]);
+  rijen.push(["Akkoord voorwaarden", String(r[12] || "").trim() === "ja" ? "ja" : "nee"]);
+  if (duplicaat) {
+    rijen.push(["Akkoord kosten EUR5", String(r[14] || "").trim() === "ja" ? "ja" : "nee"]);
+    rijen.push(["Betaling gemeld", String(r[16] || "").trim() === "ja" ? "ja" : "nog niet"]);
+  } else {
+    rijen.push(["Akkoord borg EUR25", String(r[10] || "").trim() === "ja" ? "ja" : "nee"]);
+  }
+  rijen.push(["Ingediend op", String(r[13] || "")]);
+  if (sheetUrl) { rijen.push(["De aanvraag in de sheet", sheetUrl]); }
+  return rijen;
+}
+
+/* Zet de rijen om naar platte tekst (fallback naast de HTML-mail). */
+function meldingTekstUitRijen(rijen) {
+  return NOTIFICATIE_INTRO + "\n\n" +
+    rijen.map(function (x) { return x[0] + ": " + (x[1] || "-"); }).join("\n");
+}
+
+/* Bouwt de meldingstekst op basis van een rij uit het tabblad. */
+function bouwMeldingTekst(r, sheetUrl) {
+  return meldingTekstUitRijen(bouwMeldingRijen(r, sheetUrl));
+}
+
+/* Bouwt de HTML-versie van een mail: gekleurde kop met daaronder een
+   tabel met de gegevens. */
+function mailHtml(kop, intro, rijen) {
+  var html = "<div style=\"font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#0F0F0F;line-height:1.5\">"
+    + "<div style=\"background:#124f76;color:#ffffff;padding:12px 16px;border-radius:6px 6px 0 0\">"
+    + "<strong style=\"font-size:16px\">" + escHtml(kop) + "</strong>"
+    + "<br><span style=\"font-size:13px\">HSV de Ruisvoorn Helden</span></div>"
+    + "<div style=\"border:1px solid #d9e2e9;border-top:0;padding:16px;border-radius:0 0 6px 6px\">"
+    + "<p style=\"margin:0 0 14px\">" + escHtml(intro) + "</p>"
+    + "<table style=\"border-collapse:collapse;width:100%;max-width:560px;font-size:14px\">";
+  for (var i = 0; i < rijen.length; i++) {
+    var naam = rijen[i][0];
+    var waarde = rijen[i][1];
+    if (waarde === undefined || waarde === null || waarde === "") { waarde = "\u2014"; }
+    html += "<tr>"
+      + "<td style=\"padding:6px 10px 6px 0;color:#4a5b66;vertical-align:top;white-space:nowrap\">" + escHtml(naam) + "</td>"
+      + "<td style=\"padding:6px 0;font-weight:bold\">" + escHtml(String(waarde)) + "</td></tr>";
+  }
+  html += "</table></div></div>";
+  return html;
+}
+
+/* Maakt tekst veilig om in HTML te zetten. */
+function escHtml(tekst) {
+  return String(tekst === undefined || tekst === null ? "" : tekst)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 /* Stuurt een mail met maximaal 2 pogingen (opvangen van tijdelijke
    Google-serverfouten). Bij een blijvende fout (quota, ongeldig
    adres) meteen stoppen: extra pogingen maken het probleem niet
    goed en kosten alleen quota. */
-function verzendMetRetry(naar, onderwerp, tekst) {
+function verzendMetRetry(naar, onderwerp, tekst, html) {
   var maxPogingen = 2;
   for (var p = 1; p <= maxPogingen; p++) {
     try {
-      MailApp.sendEmail({ to: naar, subject: onderwerp, body: tekst });
+      MailApp.sendEmail({
+        to: naar,
+        subject: onderwerp,
+        body: tekst,
+        htmlBody: html,
+        name: "Autovergunning HSV de Ruisvoorn"
+      });
       return;
     } catch (fout) {
       if (p === maxPogingen || isBlijvendeFout(fout)) { throw fout; }

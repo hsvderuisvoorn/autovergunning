@@ -237,43 +237,134 @@ function stuurOntvangstmelding(blad, rij) {
     + (duplicaat ? "duplicaat" : "aanvraag")
     + " binnengekomen: " + naam;
 
-  var regels = [];
-  regels.push("Er is zojuist een aanvraag binnengekomen via het formulier op de website.");
-  regels.push("");
-  regels.push("Datum aanvraag:      " + String(rij[0] || ""));
-  regels.push("Soort:               " + (duplicaat ? "Duplicaat" : "Nieuw"));
-  regels.push("Naam:                " + naam);
-  regels.push("E-mail aanvrager:    " + (String(rij[20] || "").trim() || "-"));
-  regels.push("Geboortedatum:       " + String(rij[5] || ""));
-  regels.push("Vispasnummer:        " + (String(rij[6] || "").trim() || "-"));
-  regels.push("Invalidenkaart:      " + (String(rij[7] || "").trim() || "onbekend")
-    + (String(rij[8] || "").trim() ? " (" + String(rij[8]) + ")" : ""));
-  regels.push("Referentie:         " + (String(rij[15] || "").trim() || "-"));
-  regels.push("Akkoord voorwaarden: " + (String(rij[12] || "").trim() === "ja" ? "ja" : "nee"));
-  regels.push("Akkoord borg EUR25:  " + (String(rij[10] || "").trim() === "ja" ? "ja" : "nee"));
-  regels.push("Ingediend op:        " + String(rij[13] || ""));
-  if (duplicaat) {
-    regels.push("Akkoord kosten EUR5: " + (String(rij[14] || "").trim() === "ja" ? "ja" : "nee"));
-    regels.push("Betaling gemeld:     "
-      + (String(rij[16] || "").trim() === "ja"
-        ? "ja (" + String(rij[17] || "") + ")" : "nog niet"));
+  var invalide = String(rij[7] || "").trim() || "onbekend";
+  if (String(rij[8] || "").trim()) {
+    invalide += " (" + String(rij[8]) + ")";
   }
+
+  var rijen = [
+    ["Soort aanvraag", duplicaat ? "Duplicaat vergunning" : "Nieuwe vergunning"],
+    ["Referentie", String(rij[15] || "").trim()],
+    ["Datum aanvraag", String(rij[0] || "")],
+    ["Naam", naam],
+    ["E-mailadres", String(rij[20] || "").trim()],
+    ["Geboortedatum", String(rij[5] || "")],
+    ["Vispasnummer", String(rij[6] || "").trim()],
+    ["Invalidenkaart", duplicaat ? "niet van toepassing" : invalide],
+    ["Akkoord voorwaarden", String(rij[12] || "").trim() === "ja" ? "ja" : "nee"]
+  ];
+  if (duplicaat) {
+    rijen.push(["Akkoord kosten EUR5", String(rij[14] || "").trim() === "ja" ? "ja" : "nee"]);
+    rijen.push(["Betaalstatus", "nog niet voltooid"]);
+  } else {
+    rijen.push(["Akkoord borg EUR25", String(rij[10] || "").trim() === "ja" ? "ja" : "nee"]);
+  }
+  rijen.push(["Ingediend op", String(rij[13] || "")]);
 
   var url = "";
   try { url = String(blad.getParent().getUrl() || ""); } catch (foutUrl) { url = ""; }
+
+  var intro = "Er is zojuist een aanvraag binnengekomen via het formulier op de website.";
+  var tekst = intro + "\n\n"
+    + rijen.map(function (r) { return r[0] + ": " + (r[1] || "-"); }).join("\n");
   if (url) {
-    regels.push("");
-    regels.push("De aanvraag in de sheet:");
-    regels.push(url);
+    tekst += "\n\nDe aanvraag in de sheet:\n" + url;
+    rijen.push(["De aanvraag in de sheet", url]);
   }
 
   try {
-    MailApp.sendEmail({ to: adres, subject: onderwerp, body: regels.join("\n") });
+    MailApp.sendEmail({
+      to: adres,
+      subject: onderwerp,
+      body: tekst,
+      htmlBody: mailHtml(onderwerp, intro, rijen),
+      name: "Autovergunning HSV de Ruisvoorn"
+    });
     return true;
   } catch (foutMail) {
     Logger.log("melding naar " + adres + " niet verstuurd: " + foutMelding(foutMail));
     return false;
   }
+}
+
+/* Mailt het secretariaat zodra de betaling van een duplicaat binnen is.
+   Wordt aangeroepen vanuit markeerBetalingGemeld(), dus zowel bij de
+   Mollie-webhook (iDEAL) als bij de knop "Ik heb betaald" op de pagina. */
+function stuurBetaalmelding(blad, rij) {
+  var adres = meldingAdres();
+  if (!adres) { return false; }
+
+  var waarden;
+  try {
+    waarden = blad.getRange(rij, 1, 1, 21).getValues()[0];
+  } catch (foutLees) {
+    Logger.log("betaalmelding: rij " + rij + " niet te lezen: " + foutMelding(foutLees));
+    return false;
+  }
+
+  var naam = [waarden[2], waarden[3], waarden[4]].join(" ")
+    .replace(/\s+/g, " ").trim() || "onbekende aanvrager";
+  var referentie = String(waarden[15] || "").trim() || "-";
+
+  var rijen = [
+    ["Referentie", referentie],
+    ["Naam", naam],
+    ["E-mailadres", String(waarden[20] || "").trim()],
+    ["Vispasnummer", String(waarden[6] || "").trim()],
+    ["Bedrag", "EUR 5,00"],
+    ["Betaling gemeld op", String(waarden[17] || vandaagTekst())],
+    ["Status", "betaald - duplicaat kan worden opgestuurd"]
+  ];
+  var intro = "De betaling van de duplicaat-aanvraag is binnen. "
+    + "De duplicaatvergunning kan worden opgestuurd.";
+  var tekst = intro + "\n\n"
+    + rijen.map(function (r) { return r[0] + ": " + (r[1] || "-"); }).join("\n");
+  var onderwerp = "Betaling ontvangen: " + naam + " (referentie " + referentie + ")";
+
+  try {
+    MailApp.sendEmail({
+      to: adres,
+      subject: onderwerp,
+      body: tekst,
+      htmlBody: mailHtml(onderwerp, intro, rijen),
+      name: "Autovergunning HSV de Ruisvoorn"
+    });
+    return true;
+  } catch (foutMail) {
+    Logger.log("betaalmelding naar " + adres + " niet verstuurd: " + foutMelding(foutMail));
+    return false;
+  }
+}
+
+/* Bouwt de HTML-versie van een mail: gekleurde kop met daaronder een
+   tabel met de gegevens. Wordt naast de platte tekst meegestuurd, zodat
+   elke mailclient iets toonbaars heeft. */
+function mailHtml(kop, intro, rijen) {
+  var html = "<div style=\"font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#0F0F0F;line-height:1.5\">"
+    + "<div style=\"background:#124f76;color:#ffffff;padding:12px 16px;border-radius:6px 6px 0 0\">"
+    + "<strong style=\"font-size:16px\">" + escHtml(kop) + "</strong>"
+    + "<br><span style=\"font-size:13px\">HSV de Ruisvoorn Helden</span></div>"
+    + "<div style=\"border:1px solid #d9e2e9;border-top:0;padding:16px;border-radius:0 0 6px 6px\">"
+    + "<p style=\"margin:0 0 14px\">" + escHtml(intro) + "</p>"
+    + "<table style=\"border-collapse:collapse;width:100%;max-width:560px;font-size:14px\">";
+  for (var i = 0; i < rijen.length; i++) {
+    var naam = rijen[i][0];
+    var waarde = rijen[i][1];
+    if (waarde === undefined || waarde === null || waarde === "") { waarde = "\u2014"; }
+    html += "<tr>"
+      + "<td style=\"padding:6px 10px 6px 0;color:#4a5b66;vertical-align:top;white-space:nowrap\">" + escHtml(naam) + "</td>"
+      + "<td style=\"padding:6px 0;font-weight:bold\">" + escHtml(String(waarde)) + "</td></tr>";
+  }
+  html += "</table></div></div>";
+  return html;
+}
+
+/* Maakt tekst veilig om in HTML te zetten. */
+function escHtml(tekst) {
+  return String(tekst === undefined || tekst === null ? "" : tekst)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 /* Het adres voor de meldingsmail. Script-eigenschap MELDING_ADRES
@@ -401,9 +492,22 @@ function zoekRijMetReferentie(blad, ref) {
 function markeerBetalingGemeld(blad, ref) {
   var rij = zoekRijMetReferentie(blad, ref);
   if (!rij) { return false; }
+  var wasAlBetaald = String(blad.getRange(rij, 17).getValue() || "")
+    .trim().toLowerCase() === "ja";
   blad.getRange(rij, 17).setValue("ja");
   blad.getRange(rij, 18).setValue(vandaagTekst());
   kleurGegevensRij(blad, rij, blad.getRange(rij, 1, 1, bruikbareBreedte(blad)).getValues()[0]);
+  /* Alleen mailen bij de eerste keer dat de betaling op "ja" gaat.
+     Mollie stuurt de webhook bij elke statuswijziging en de knop kan
+     vaker worden ingedrukt; dat mag geen tweede mail opleveren. Een
+     fout in de mail mag de betaalverwerking nooit blokkeren. */
+  if (!wasAlBetaald) {
+    try {
+      stuurBetaalmelding(blad, rij);
+    } catch (foutMail) {
+      Logger.log("betaalmelding mislukt: " + foutMelding(foutMail));
+    }
+  }
   return true;
 }
 
