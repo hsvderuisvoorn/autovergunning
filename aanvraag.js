@@ -1169,6 +1169,22 @@ function koppelKlaarzetten() {
     });
   }
 
+  /* De betaalknop mag nooit een leeg tabblad (of de aanvraagpagina)
+     openen zolang de iDEAL-link nog niet binnen is. Gebeurt dat wel,
+     dan lijkt het alsof de knop naar 'een nieuwe aanvraag' gaat. In
+     dat geval halen we de link alsnog op in plaats van weg te springen. */
+  var mollieKnop = document.getElementById("mollieKnop");
+  if (mollieKnop) {
+    mollieKnop.addEventListener("click", function (e) {
+      var href = String(mollieKnop.getAttribute("href") || "");
+      if (!href || href === "#") {
+        e.preventDefault();
+        toonMollieStatus("De iDEAL-betaallink wordt opgehaald... even geduld.");
+        vraagBetaallinkOp(false);
+      }
+    });
+  }
+
   /* handmatig betalen / QR-code verbergen */
   var handmatigKnop = document.getElementById("handmatigKnop");
   if (handmatigKnop) {
