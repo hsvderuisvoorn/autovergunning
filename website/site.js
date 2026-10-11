@@ -15,7 +15,7 @@
                         ?act=status&ref=...        (antwoord: status)
    ============================================================= */
 
-var BACKEND_URL = "https://script.google.com/macros/s/AKfycbyGgzq52fmObOgDZndUQSKssPCwzFZz7wAiAmSSFZrauo2n9E7UZmK4naoUS6eZFIY/exec";
+var BACKEND_URL = "https://script.google.com/macros/s/AKfycbzkt0_h-EMqcB_6vIT7W2IYAhJXcfSC0A0h2IumhwyU5Zd1MgqvVLylE7tn9S0attZm/exec";
 
 var VERZEND_TIMEOUT_MS = 45000;
 var VERZEND_POGINGEN = 3;

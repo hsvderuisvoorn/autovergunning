@@ -206,8 +206,13 @@ function schrijfAanvraagRij(json) {
   }
 
   /* En de bevestiging naar de aanvrager zelf, op het e-mailadres uit
-     kolom U. Ook hier geldt: de aanvraag staat al, dus alleen loggen. */
-  stuurBevestigingsmail(rijWaarden);
+     kolom U. Ook hier geldt: de aanvraag staat al, dus alleen loggen.
+     Bij een duplicaat wachten we daarmee tot de betaling binnen is:
+     die bevestiging gaat pas uit na de betaling (markeerBetalingGemeld),
+     want er valt daarvoor nog niets te bevestigen. */
+  if (String(rijWaarden[1] || "").trim() !== "duplicaat") {
+    stuurBevestigingsmail(rijWaarden, false);
+  }
 
   /* De iDEAL-link wordt hier NIET meer gemaakt. Een verzoek naar
      Mollie duurt merkbaar langer dan het wegschrijven van de rij en
@@ -392,7 +397,7 @@ function meldingAdres() {
    bevestiging. Faalt MailApp, dan wordt het gelogd: de aanvraag zelf
    staat al in de sheet en de aanvrager ziet de bevestigingspagina.
    ------------------------------------------------------------ */
-function stuurBevestigingsmail(rij) {
+function stuurBevestigingsmail(rij, betaald) {
   var adres = String(rij[20] || "").trim();
   if (!adres) { return false; }
   if (!geldigeEpostaam(adres)) {
@@ -401,6 +406,10 @@ function stuurBevestigingsmail(rij) {
   }
 
   var duplicaat = String(rij[1] || "").trim() === "duplicaat";
+  /* De bevestiging van een duplicaat gaat pas uit als de betaling
+     binnen is; vóór die tijd valt er nog niets te bevestigen. */
+  if (duplicaat && !betaald) { return false; }
+
   var naam = [rij[3], rij[4]].join(" ")
     .replace(/\s+/g, " ").trim();
   var referentie = String(rij[15] || "").trim() || "-";
@@ -409,7 +418,7 @@ function stuurBevestigingsmail(rij) {
   regels.push("Beste " + (naam || "heer/mevrouw") + ",");
   regels.push("");
   regels.push(duplicaat
-    ? "Wij hebben uw aanvraag voor een duplicaat Autovergunning van Hengelsportvereniging De Ruisvoorn ontvangen."
+    ? "Wij hebben uw aanvraag voor een duplicaat Autovergunning van Hengelsportvereniging De Ruisvoorn ontvangen en uw betaling van €5 is in goede orde ontvangen."
     : "Wij hebben uw aanvraag voor een Autovergunning van Hengelsportvereniging De Ruisvoorn in goede orde ontvangen.");
   regels.push("");
   regels.push("Soort aanvraag:   " + (duplicaat ? "duplicaat" : "nieuw"));
@@ -417,9 +426,7 @@ function stuurBevestigingsmail(rij) {
   regels.push("Referentie:       " + referentie);
   regels.push("");
   if (duplicaat) {
-    regels.push("De duplicaat van €5 betaalt u met iDEAL via de knop op de aanvraagpagina.");
-    regels.push("");
-    regels.push("Zodra wij uw betaling hebben ontvangen, sturen wij de duplicaat zo snel mogelijk toe.");
+    regels.push("Wij sturen de duplicaat zo snel mogelijk toe. U hoeft verder niets te doen.");
   } else {
     regels.push("De definitieve toekenning wordt besloten door het bestuur op de eerstvolgende bestuursvergadering, op basis van het aantal beschikbare sleutels. De borg van €25 voor de sleutel wordt pas bij toekenning in rekening gebracht.");
   }
@@ -430,7 +437,7 @@ function stuurBevestigingsmail(rij) {
   regels.push("Hengelsportvereniging De Ruisvoorn");
 
   var onderwerp = (duplicaat
-    ? "Ontvangen: uw aanvraag duplicaat Autovergunning"
+    ? "Betaald: uw duplicaat Autovergunning"
     : "Ontvangen: uw aanvraag Autovergunning")
     + " (referentie " + referentie + ")";
 
@@ -501,6 +508,15 @@ function markeerBetalingGemeld(blad, ref) {
       stuurBetaalmelding(blad, rij);
     } catch (foutMail) {
       Logger.log("betaalmelding mislukt: " + foutMelding(foutMail));
+    }
+    /* Nu de betaling binnen is, gaat ook de bevestiging naar de
+       aanvrager uit (met vermelding dat de €5 is ontvangen). */
+    try {
+      var rijBetaald = blad.getRange(rij, 1, 1, 21).getValues()[0];
+      stuurBevestigingsmail(rijBetaald, true);
+    } catch (foutBevestiging) {
+      Logger.log("bevestigingsmail na betaling mislukt: "
+        + foutMelding(foutBevestiging));
     }
   }
   return true;
@@ -1145,11 +1161,36 @@ function resetKoppelCache() {
 function koppelSpreadsheet() {
   if (_koppelCache) { return _koppelCache; }
 
-  var bestand;
+  var bestand = null;
+
+  /* Voorkeur: een vast spreadsheet-ID uit de scripteigenschappen.
+     Daarmee werkt de backend ook als LOS (standalone) project, zolang
+     het account waaronder het draait toegang heeft tot het bestand.
+     Is SHEET_ID niet gezet, dan gebruiken we de gekoppelde sheet
+     (getActiveSpreadsheet) zoals vanouds. */
+  var vastId = "";
   try {
-    bestand = SpreadsheetApp.getActiveSpreadsheet();
-  } catch (fout) {
-    bestand = null;
+    vastId = String(
+      PropertiesService.getScriptProperties().getProperty("SHEET_ID") || ""
+    ).trim();
+  } catch (foutProp) {
+    vastId = "";
+  }
+  if (vastId) {
+    try {
+      bestand = SpreadsheetApp.openById(vastId);
+    } catch (foutOpen) {
+      throw new Error("spreadsheet met SHEET_ID '" + vastId
+        + "' niet te openen: " + foutMelding(foutOpen));
+    }
+  }
+
+  if (!bestand) {
+    try {
+      bestand = SpreadsheetApp.getActiveSpreadsheet();
+    } catch (fout) {
+      bestand = null;
+    }
   }
 
   if (!bestand) {
