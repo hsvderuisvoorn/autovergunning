@@ -684,6 +684,9 @@
         <div class="belangrijk">
           <p>U hoeft verder niets te doen. Heeft u na een week nog niets ontvangen? Stuur dan een mail naar <a href="mailto:secretariaat@hsvderuisvoorn.nl">secretariaat@hsvderuisvoorn.nl</a> met uw betaalreferentie.</p>
         </div>
+        <p class="terug-acties">
+          <a class="knop-primair" href="https://hsvderuisvoorn.nl">Ga verder naar de website</a>
+        </p>
       </div>
 
       <p id="bevestigingsMailTekst" class="hulp-tekst" hidden></p>
