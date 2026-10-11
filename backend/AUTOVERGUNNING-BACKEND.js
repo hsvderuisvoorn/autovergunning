@@ -401,7 +401,7 @@ function stuurBevestigingsmail(rij) {
   }
 
   var duplicaat = String(rij[1] || "").trim() === "duplicaat";
-  var naam = [rij[2], rij[3], rij[4]].join(" ")
+  var naam = [rij[3], rij[4]].join(" ")
     .replace(/\s+/g, " ").trim();
   var referentie = String(rij[15] || "").trim() || "-";
   var regels = [];
@@ -417,14 +417,9 @@ function stuurBevestigingsmail(rij) {
   regels.push("Referentie:       " + referentie);
   regels.push("");
   if (duplicaat) {
-    regels.push("De duplicaat kost €5. U kunt op de aanvraagpagina met iDEAL betalen, of het bedrag overmaken op:");
+    regels.push("De duplicaat van €5 betaalt u met iDEAL via de knop op de aanvraagpagina.");
     regels.push("");
-    regels.push("  rekeningnummer: NL09 RABO 0141 9769 50");
-    regels.push("  t.n.v.:         Hengelsportver. De Ruisvoorn");
-    regels.push("  bedrag:         €5,00");
-    regels.push("  o.v.v.:         " + referentie);
-    regels.push("");
-    regels.push("Na ontvangst van de betaling sturen wij de duplicaat zo snel mogelijk toe.");
+    regels.push("Zodra wij uw betaling hebben ontvangen, sturen wij de duplicaat zo snel mogelijk toe.");
   } else {
     regels.push("De definitieve toekenning wordt besloten door het bestuur op de eerstvolgende bestuursvergadering, op basis van het aantal beschikbare sleutels. De borg van €25 voor de sleutel wordt pas bij toekenning in rekening gebracht.");
   }
@@ -629,16 +624,37 @@ function schrijfBetaling(ref, paymentId, url, status, rij) {
   return regel;
 }
 
-function mollieTerugUrl() {
-  var vast = "";
+function mollieTerugUrl(ref) {
+  var basis = "";
   try {
-    vast = String(PropertiesService.getScriptProperties()
+    basis = String(PropertiesService.getScriptProperties()
       .getProperty("MOLLIE_REDIRECT_URL") || "").trim();
   } catch (fout) {
-    vast = "";
+    basis = "";
   }
-  if (vast) { return vast; }
-  return "https://hsvderuisvoorn.github.io/autovergunning/aanvraag.html?betaald=1";
+  if (!basis) {
+    basis = "https://hsvderuisvoorn.github.io/autovergunning/aanvraag.html";
+  }
+  /* De betaalreferentie gaat mee in de terugkeerlink. Zo kan de
+     pagina na terugkomst de betaling controleren, ook als de aanvraag
+     op een ander adres (bijvoorbeeld de eigen website) is ingediend en
+     de daar bewaarde referentie niet beschikbaar is. */
+  var zonderHek = basis.split("#")[0];
+  var vraag = "";
+  var vraagteken = zonderHek.indexOf("?");
+  if (vraagteken >= 0) {
+    vraag = zonderHek.substring(vraagteken + 1);
+    zonderHek = zonderHek.substring(0, vraagteken);
+  }
+  var params = vraag ? vraag.split("&") : [];
+  var heeftBetaald = false;
+  for (var i = 0; i < params.length; i++) {
+    if (params[i] === "betaald=1") { heeftBetaald = true; }
+  }
+  if (!heeftBetaald) { params.push("betaald=1"); }
+  var sleutel = String(ref || "").trim();
+  if (sleutel) { params.push("ref=" + encodeURIComponent(sleutel)); }
+  return basis + "?" + params.join("&");
 }
 
 function mollieWebhookUrl() {
@@ -705,7 +721,7 @@ function maakMollieBetaling(ref, voornaam, achternaam) {
     amount: { currency: "EUR", value: DUPLICAAT_BEDRAG_MOLLIE },
     description: ("Duplicaat Autovergunning " + String(ref || "")).slice(0, 140),
     method: MOLLIE_METHODE,
-    redirectUrl: mollieTerugUrl(),
+    redirectUrl: mollieTerugUrl(ref),
     locale: "nl_NL",
     metadata: {
       betaalReferentie: String(ref || ""),

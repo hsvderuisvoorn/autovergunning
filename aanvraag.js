@@ -301,10 +301,17 @@ function controleerBetaalstatus() {
   var icoon = document.getElementById("terugIcoon");
   var knop = document.getElementById("terugStatusKnop");
   var knopSite = document.getElementById("terugNaarSite");
-  var ref = haalRefOp();
-  if (!sectie || !ref || !BACKEND_URL) { return; }
+  if (!sectie || !BACKEND_URL) { return; }
   var params = new URLSearchParams(window.location.search);
   if (params.get("betaald") !== "1") { return; }
+  /* De referentie staat normaal in de opslag, maar gaat na een betaling
+     ook mee in de terugkeerlink. Gebruik die als de opslag leeg is,
+     bijvoorbeeld als de aanvraag op een ander adres is ingediend. */
+  var ref = haalRefOp();
+  if (!ref) {
+    var uitLink = String(params.get("ref") || "").trim();
+    if (uitLink) { ref = uitLink; bewaarRef(ref); }
+  }
   sectie.hidden = false;
   sectie.style.display = "flex";
   sectie.classList.remove("betaald");
@@ -314,6 +321,20 @@ function controleerBetaalstatus() {
   if (knopSite) { knopSite.hidden = true; }
   var form = document.getElementById("aanvraagForm");
   if (form) { form.hidden = true; form.style.display = "none"; }
+  if (!ref) {
+    /* Geen referentie: de betaling kan niet worden opgezocht. Laat dat
+       duidelijk zien in plaats van stil het formulier te tonen. */
+    if (icoon) { icoon.classList.add("stop"); icoon.textContent = "?"; }
+    if (knop) { knop.hidden = true; knop.style.display = "none"; }
+    if (knopSite) { knopSite.hidden = false; }
+    if (tekst) {
+      tekst.innerHTML = "Wij kunnen uw betaling niet automatisch controleren. " +
+        "Stuur uw betaalreferentie naar " +
+        "<a href=\"mailto:secretariaat@hsvderuisvoorn.nl\">secretariaat@hsvderuisvoorn.nl</a> " +
+        "en wij zoeken het voor u na.";
+    }
+    return;
+  }
   /* 'Nieuwe betaallink' in de slottekst: die link wordt pas in de
      tekst gezet als het automatisch controleren niets opleverde. */
   function koppelOpnieuwKnop() {
@@ -327,17 +348,9 @@ function controleerBetaalstatus() {
   }
 
   function toonGelukt() {
-    /* De betaling is binnen: geen knop meer nodig, wel een vinkje en
-       de boodschap dat de vergunning gemaakt en verstuurd wordt. */
-    sectie.classList.add("betaald");
-    if (titel) { titel.textContent = "Betaling geslaagd"; }
-    if (icoon) { icoon.classList.add("gedaan"); icoon.textContent = "\u2713"; }
-    if (knop) { knop.hidden = true; knop.style.display = "none"; }
-    if (knopSite) { knopSite.hidden = false; }
-    if (tekst) {
-      tekst.innerHTML = "Uw betaling van &euro;5 is ontvangen. Uw duplicaatvergunning " +
-        "wordt zo snel mogelijk voor u <strong>aangemaakt en verstuurd</strong>.";
-    }
+    /* De betaling is binnen: toon de volledige bevestigingspagina
+       ("Betaling gelukt") in plaats van het kleine terug-blok. */
+    toonBetaaldPagina();
   }
 
   var poging = 0;
@@ -622,6 +635,26 @@ function toonStatus(tekst, soort) {
   if (soort === "info") { el.classList.add("info"); }
 }
 
+/* De volledige bevestigingspagina tonen als de betaling binnen is. */
+function toonBetaaldPagina() {
+  var form = document.getElementById("aanvraagForm");
+  var terug = document.getElementById("terugVanBetaling");
+  var sectie = document.getElementById("geluktPagina");
+  if (terug) { terug.hidden = true; terug.style.display = "none"; }
+  if (form) { form.hidden = true; form.style.display = "none"; }
+  if (sectie) { sectie.hidden = false; sectie.style.display = "block"; }
+  var titel = document.getElementById("bedanktTitel");
+  if (titel) { titel.textContent = "Betaling gelukt"; }
+  var nieuw = document.getElementById("geluktNieuw");
+  var duplicaat = document.getElementById("geluktDuplicaat");
+  var betaald = document.getElementById("geluktBetaald");
+  if (nieuw)     { nieuw.hidden = true; }
+  if (duplicaat) { duplicaat.hidden = true; }
+  if (betaald)   { betaald.hidden = false; }
+  if (sectie && sectie.scrollIntoView) { sectie.scrollIntoView(); }
+  window.scrollTo(0, 0);
+}
+
 /* ------------------------------------------------------------
    Geluktpagina tonen na een succesvolle verzending
    ------------------------------------------------------------ */
@@ -636,11 +669,15 @@ function toonGeluktPagina(antwoord) {
     form.hidden = true;
     form.style.display = "none";
   }
+  var titel = document.getElementById("bedanktTitel");
+  if (titel) { titel.textContent = "Aanvraag ontvangen"; }
   var isDuplicaat = laatsteSoortAanvraag === "duplicaat";
   var nieuw = document.getElementById("geluktNieuw");
   var duplicaat = document.getElementById("geluktDuplicaat");
+  var betaald = document.getElementById("geluktBetaald");
   if (nieuw)     { nieuw.hidden = isDuplicaat; }
   if (duplicaat) { duplicaat.hidden = !isDuplicaat; }
+  if (betaald)   { betaald.hidden = true; }
   if (isDuplicaat) {
     vulBetaalgegevensIn();
     /* De QR-code en de handmatige betaalgegevens staan uit: de

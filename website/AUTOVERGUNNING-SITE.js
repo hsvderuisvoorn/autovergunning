@@ -288,7 +288,14 @@ function maakMollieBetaling(ref, aanvrager, terugUrl) {
     }
   };
   var terug = geldigeTerugUrl(terugUrl);
-  if (terug) { body.redirectUrl = terug + "?betaald=1"; }
+  if (terug) {
+    /* De referentie gaat mee in de terugkeerlink, zodat de pagina na
+       terugkomst de betaling kan controleren ook als de daar bewaarde
+       referentie niet beschikbaar is. */
+    var sleutelRef = String(ref || "").trim();
+    body.redirectUrl = terug + "?betaald=1" +
+      (sleutelRef ? "&ref=" + encodeURIComponent(sleutelRef) : "");
+  }
   var hook = eigenWebhookUrl();
   if (hook) { body.webhookUrl = hook; }
 

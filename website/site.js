@@ -165,10 +165,17 @@ function controleerBetaalstatus() {
   var icoon = document.getElementById("terugIcoon");
   var knop = document.getElementById("terugStatusKnop");
   var knopSite = document.getElementById("terugNaarSite");
-  var ref = haalRefOp();
-  if (!sectie || !ref || !BACKEND_URL) { return; }
+  if (!sectie || !BACKEND_URL) { return; }
   var params = new URLSearchParams(window.location.search);
   if (params.get("betaald") !== "1") { return; }
+  /* De referentie staat normaal in de opslag, maar gaat na een betaling
+     ook mee in de terugkeerlink. Gebruik die als de opslag leeg is,
+     bijvoorbeeld als de aanvraag op een ander adres is ingediend. */
+  var ref = haalRefOp();
+  if (!ref) {
+    var uitLink = String(params.get("ref") || "").trim();
+    if (uitLink) { ref = uitLink; bewaarRef(ref); }
+  }
 
   sectie.hidden = false;
   sectie.style.display = "flex";
@@ -179,6 +186,20 @@ function controleerBetaalstatus() {
   if (knopSite) { knopSite.hidden = true; }
   var form = document.getElementById("aanvraagForm");
   if (form) { form.hidden = true; form.style.display = "none"; }
+  if (!ref) {
+    /* Geen referentie: de betaling kan niet worden opgezocht. Laat dat
+       duidelijk zien in plaats van stil het formulier te tonen. */
+    if (icoon) { icoon.classList.add("stop"); icoon.textContent = "?"; }
+    if (knop) { knop.hidden = true; knop.style.display = "none"; }
+    if (knopSite) { knopSite.hidden = false; }
+    if (tekst) {
+      tekst.innerHTML = "Wij kunnen uw betaling niet automatisch controleren. " +
+        "Stuur uw referentie naar " +
+        "<a href=\"mailto:secretariaat@hsvderuisvoorn.nl\">secretariaat@hsvderuisvoorn.nl</a> " +
+        "en wij kijken het na.";
+    }
+    return;
+  }
 
   function koppelOpnieuwKnop() {
     var opnieuwKnop = document.getElementById("mollieOpnieuw");
@@ -191,15 +212,9 @@ function controleerBetaalstatus() {
   }
 
   function toonGelukt() {
-    sectie.classList.add("betaald");
-    if (titel) { titel.textContent = "Betaling geslaagd"; }
-    if (icoon) { icoon.classList.add("gedaan"); icoon.textContent = "\u2713"; }
-    if (knop) { knop.hidden = true; knop.style.display = "none"; }
-    if (knopSite) { knopSite.hidden = false; }
-    if (tekst) {
-      tekst.innerHTML = "Uw betaling van &euro;5 is ontvangen. Uw duplicaatvergunning " +
-        "wordt zo snel mogelijk voor u <strong>aangemaakt en verstuurd</strong>.";
-    }
+    /* De betaling is binnen: toon de volledige bevestigingspagina
+       ("Betaling gelukt") in plaats van het kleine terug-blok. */
+    toonBetaaldPagina();
   }
 
   var poging = 0;
@@ -438,6 +453,23 @@ function controleerAanvraag() {
   return true;
 }
 
+/* De volledige bevestigingspagina tonen als de betaling binnen is. */
+function toonBetaaldPagina() {
+  var form = document.getElementById("aanvraagForm");
+  var terug = document.getElementById("terugVanBetaling");
+  var sectie = document.getElementById("geluktPagina");
+  if (terug) { terug.hidden = true; terug.style.display = "none"; }
+  if (form) { form.hidden = true; form.style.display = "none"; }
+  if (sectie) { sectie.hidden = false; sectie.style.display = "block"; }
+  var titel = document.getElementById("bedanktTitel");
+  if (titel) { titel.textContent = "Betaling gelukt"; }
+  toonAls(document.getElementById("geluktNieuw"), false);
+  toonAls(document.getElementById("geluktDuplicaat"), false);
+  toonAls(document.getElementById("geluktBetaald"), true);
+  if (sectie && sectie.scrollIntoView) { sectie.scrollIntoView(); }
+  window.scrollTo(0, 0);
+}
+
 /* ------------------------------------------------------------
    Bevestigingspagina
    ------------------------------------------------------------ */
@@ -447,9 +479,12 @@ function toonGeluktPagina(antwoord) {
   if (sectie) { sectie.hidden = false; sectie.style.display = "block"; }
   if (form) { form.hidden = true; form.style.display = "none"; }
 
+  var titel = document.getElementById("bedanktTitel");
+  if (titel) { titel.textContent = "Aanvraag ontvangen"; }
   var isDuplicaat = laatsteSoortAanvraag === "duplicaat";
   toonAls(document.getElementById("geluktNieuw"), !isDuplicaat);
   toonAls(document.getElementById("geluktDuplicaat"), isDuplicaat);
+  toonAls(document.getElementById("geluktBetaald"), false);
 
   var ref = (antwoord && antwoord.referentie) || laatsteRef;
   var refRegel = document.getElementById("bedanktReferentie");
