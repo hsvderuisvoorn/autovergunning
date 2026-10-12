@@ -193,7 +193,11 @@ function schrijfAanvraagRij(json) {
      timer alsnog als vangnet dienen. De kop van kolom T staat er al
      via koppelSpreadsheet; de vangnet-check eromheen dekt het geval
      dat de sheet van vroeger alleen maar A t/m S had. */
-  if (stuurOntvangstmelding(blad, rijWaarden)) {
+  /* Bij een duplicaat wachten we met de secretariaatsmelding tot de
+     betaling binnen is (zie markeerBetalingGemeld): dan pas valt er
+     iets zinvols te melden, met de betaalstatus erbij. */
+  if (String(rijWaarden[1] || "").trim() !== "duplicaat" &&
+      stuurOntvangstmelding(blad, rijWaarden)) {
     try {
       if (!String(blad.getRange(1, 20).getValue() || "").trim()) {
         blad.getRange(1, 20).setValue("Mail verstuurd");
@@ -230,7 +234,7 @@ function schrijfAanvraagRij(json) {
    het mislukte. Beide terugvalsituaties zijn bewust geen fout:
    de aanvraag staat al in de sheet.
    ------------------------------------------------------------ */
-function stuurOntvangstmelding(blad, rij) {
+function stuurOntvangstmelding(blad, rij, betaalstatusTekst) {
   var adres = meldingAdres();
   if (!adres) { return false; }
 
@@ -238,9 +242,18 @@ function stuurOntvangstmelding(blad, rij) {
   var duplicaat = soort === "duplicaat";
   var naam = [rij[2], rij[3], rij[4]].join(" ")
     .replace(/\s+/g, " ").trim() || "onbekende aanvrager";
+  /* Bij een duplicaat gaat deze mail pas uit als de betaling bekend is.
+     De uitkomst ("betaald" of "niet gelukt") zetten we meteen in het
+     onderwerp, zodat één blik volstaat. */
+  var uitkomst = String(betaalstatusTekst || "").trim();
   var onderwerp = "Autovergunning "
     + (duplicaat ? "duplicaat" : "aanvraag")
     + " binnengekomen: " + naam;
+  if (duplicaat && uitkomst) {
+    var uitkomstKort = uitkomst === "betaald" ? "geslaagd"
+      : (uitkomst === "alsnog geslaagd" ? "alsnog geslaagd" : "niet gelukt");
+    onderwerp = "Autovergunning duplicaat " + naam + ": betaling " + uitkomstKort;
+  }
 
   var invalide = String(rij[7] || "").trim() || "onbekend";
   if (String(rij[8] || "").trim()) {
@@ -260,7 +273,9 @@ function stuurOntvangstmelding(blad, rij) {
   ];
   if (duplicaat) {
     rijen.push(["Akkoord kosten EUR5", String(rij[14] || "").trim() === "ja" ? "ja" : "nee"]);
-    rijen.push(["Betaalstatus", "nog niet voltooid"]);
+    rijen.push(["Betaalstatus", uitkomst
+      || (String(rij[16] || "").trim().toLowerCase() === "ja"
+        ? "betaald" : "nog niet voltooid")]);
   } else {
     rijen.push(["Akkoord borg EUR25", String(rij[10] || "").trim() === "ja" ? "ja" : "nee"]);
   }
@@ -270,6 +285,9 @@ function stuurOntvangstmelding(blad, rij) {
   try { url = String(blad.getParent().getUrl() || ""); } catch (foutUrl) { url = ""; }
 
   var intro = "Er is zojuist een aanvraag binnengekomen via het formulier op de website.";
+  if (duplicaat && uitkomst) {
+    intro += " De iDEAL-betaling van EUR 5 is " + uitkomst + ".";
+  }
   var tekst = intro + "\n\n"
     + rijen.map(function (r) { return r[0] + ": " + (r[1] || "-"); }).join("\n");
   if (url) {
@@ -505,9 +523,27 @@ function markeerBetalingGemeld(blad, ref) {
      fout in de mail mag de betaalverwerking nooit blokkeren. */
   if (!wasAlBetaald) {
     try {
-      stuurBetaalmelding(blad, rij);
+      var rijDup = blad.getRange(rij, 1, 1, 21).getValues()[0];
+      if (String(rijDup[1] || "").trim() === "duplicaat") {
+        if (String(rijDup[19] || "").trim()) {
+          /* Er ging al een melding uit (de betaling was mislukt) en nu
+             is het alsnog gelukt. Dat is de uitzondering op "één mail":
+             één correctiemail erachteraan, met de nieuwe uitkomst. */
+          try {
+            stuurOntvangstmelding(blad, rijDup, "alsnog geslaagd");
+          } catch (foutCorr) {
+            Logger.log("correctiemelding mislukt: " + foutMelding(foutCorr));
+          }
+        } else {
+          /* Duplicaat: de betaling is nu binnen, dus de ene melding naar
+             het secretariaat, met de uitkomst er meteen in. */
+          meldBetaalstatus(blad, ref, "betaald");
+        }
+      } else {
+        stuurBetaalmelding(blad, rij);
+      }
     } catch (foutMail) {
-      Logger.log("betaalmelding mislukt: " + foutMelding(foutMail));
+      Logger.log("melding na betaling mislukt: " + foutMelding(foutMail));
     }
     /* Nu de betaling binnen is, gaat ook de bevestiging naar de
        aanvrager uit (met vermelding dat de €5 is ontvangen). */
@@ -520,6 +556,31 @@ function markeerBetalingGemeld(blad, ref) {
     }
   }
   return true;
+}
+
+/* De ene melding aan het secretariaat over een duplicaat, zodra de
+   betaaluitkomst bekend is. 'uitkomst' is "betaald" of "niet gelukt".
+   Kolom T ("Mail verstuurd") is de rem: is die al gezet, dan gaat er
+   nooit een tweede mail uit. Geeft true terug als er gemaild is. */
+function meldBetaalstatus(blad, ref, uitkomst) {
+  var rij = zoekRijMetReferentie(blad, ref);
+  if (!rij) { return false; }
+  if (String(blad.getRange(rij, 20).getValue() || "").trim()) { return false; }
+  var rijWaarden = blad.getRange(rij, 1, 1, 21).getValues()[0];
+  if (String(rijWaarden[1] || "").trim() !== "duplicaat") { return false; }
+  var verstuurd = false;
+  try {
+    verstuurd = stuurOntvangstmelding(blad, rijWaarden, uitkomst);
+  } catch (foutMail) {
+    Logger.log("melding betaalstatus mislukt: " + foutMelding(foutMail));
+  }
+  if (verstuurd) {
+    try { blad.getRange(rij, 20).setValue("ja"); }
+    catch (foutMerk) {
+      Logger.log("kolom T na betaalstatus zetten mislukt: " + foutMelding(foutMerk));
+    }
+  }
+  return verstuurd;
 }
 
 /* ------------------------------------------------------------
@@ -829,6 +890,19 @@ function formVelden(inhoud) {
   return velden;
 }
 
+/* Heeft deze Mollie-status de betaling laten slagen? */
+function betaalstatusGelukt(status) {
+  var s = String(status || "").trim().toLowerCase();
+  return s === "paid" || s === "authorized";
+}
+
+/* Is deze Mollie-status definitief mislukt (afgebroken of verlopen)? */
+function betaalstatusMislukt(status) {
+  var s = String(status || "").trim().toLowerCase();
+  return s === "failed" || s === "canceled" ||
+         s === "cancelled" || s === "expired";
+}
+
 /* Webhook van Mollie: payment-id + status. Zet bij 'paid' ook
    'Betaling gemeld' in het tabblad "Aanvragen". */
 function verwerkMollieWebhook(inhoud) {
@@ -853,11 +927,13 @@ function verwerkMollieWebhook(inhoud) {
     if (String(ids[i][0] || "").trim() === id) {
       var rij = i + 2;
       if (status) { schrijfBetalingStatus(rij, status); }
-      if (status === "paid" || status === "authorized") {
-        var ref = String(blad.getRange(rij, 1).getValue() || "").trim();
-        if (ref) {
-          markeerBetalingGemeld(koppelSpreadsheet().blad, ref);
-        }
+      var ref = String(blad.getRange(rij, 1).getValue() || "").trim();
+      if (ref && betaalstatusGelukt(status)) {
+        markeerBetalingGemeld(koppelSpreadsheet().blad, ref);
+      } else if (ref && betaalstatusMislukt(status)) {
+        /* Betaling afgebroken of verlopen: ook dan de ene melding naar
+           het secretariaat, nu met "niet gelukt" erin. */
+        meldBetaalstatus(koppelSpreadsheet().blad, ref, "niet gelukt");
       }
       return true;
     }
@@ -1381,8 +1457,10 @@ function doGet(e) {
       if (bijMollie && bijMollie !== status) {
         status = bijMollie;
         schrijfBetalingStatus(gevonden.rij, status);
-        if (status === "paid" || status === "authorized") {
+        if (betaalstatusGelukt(status)) {
           markeerBetalingGemeld(koppelSpreadsheet().blad, refStatus);
+        } else if (betaalstatusMislukt(status)) {
+          meldBetaalstatus(koppelSpreadsheet().blad, refStatus, "niet gelukt");
         }
       }
     }

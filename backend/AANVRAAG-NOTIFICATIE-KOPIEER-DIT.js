@@ -13,6 +13,9 @@
      secretariaat@hsvderuisvoorn.nl met de gegevens en een link
      naar de sheet, en zet in kolom T ("Mail verstuurd") een
      "ja" zodra de mail is verzonden.
+   - Duplicaten worden pas gemeld als de betaling gemeld is
+     (kolom Q = "ja"): onbetaalde duplicaten worden overgeslagen,
+     zodat er geen "nog niet betaald"-melding uitgaat.
 
    DEZE TIMER IS (BIJNA) OVERBODIG: de backend (AUTOVERGUNNING-
    KOPIEER-DIT) verstuurt de melding al direct op het moment dat de
@@ -219,6 +222,14 @@ function verwerkOnverzondenMails() {
     }
     if (gevuld === 0) { continue; }
 
+    /* Duplicaat: pas melden als de betaling gemeld is (kolom Q).
+       Anders zou het vangnet een "nog niet betaald"-melding sturen
+       terwijl de aanvraag daar nog op wacht. */
+    if (String(r[1] || "").trim() === "duplicaat" &&
+        String(r[16] || "").trim().toLowerCase() !== "ja") {
+      continue;
+    }
+
     /* Blijvend falende rij: niet meer proberen. */
     if (isOpgegeven(mark)) {
       overgeslagen++;
@@ -238,8 +249,12 @@ function verwerkOnverzondenMails() {
     try {
       var naam = String(r[4] || "").trim() || "aanvrager";
       var soort = String(r[1] || "").trim();
-      var onderwerp = "Autovergunning " +
-        (soort === "duplicaat" ? "duplicaat" : "aanvraag") + " ontvangen: " + naam;
+      /* Een duplicaat komt hier alleen langs als de betaling gemeld is
+         (zie de filter hierboven), dus het onderwerp kan dat meteen
+         zeggen. */
+      var onderwerp = soort === "duplicaat"
+        ? "Autovergunning duplicaat " + naam + ": betaling geslaagd"
+        : "Autovergunning aanvraag ontvangen: " + naam;
       var rijen = bouwMeldingRijen(r, sheetUrl);
       var tekst = meldingTekstUitRijen(rijen);
       var html = mailHtml(onderwerp, NOTIFICATIE_INTRO, rijen);
@@ -364,7 +379,7 @@ function bouwMeldingRijen(r, sheetUrl) {
   rijen.push(["Akkoord voorwaarden", String(r[12] || "").trim() === "ja" ? "ja" : "nee"]);
   if (duplicaat) {
     rijen.push(["Akkoord kosten EUR5", String(r[14] || "").trim() === "ja" ? "ja" : "nee"]);
-    rijen.push(["Betaling gemeld", String(r[16] || "").trim() === "ja" ? "ja" : "nog niet"]);
+    rijen.push(["Betaalstatus", String(r[16] || "").trim().toLowerCase() === "ja" ? "betaald" : "nog niet voltooid"]);
   } else {
     rijen.push(["Akkoord borg EUR25", String(r[10] || "").trim() === "ja" ? "ja" : "nee"]);
   }
