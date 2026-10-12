@@ -1,4 +1,4 @@
-﻿<!-- ============================================================
+<!-- ============================================================
      AUTOVERGUNNING - invoegblok voor de eigen website
      Plak dit geheel in het Content-veld van de pagina.
      Bron: aanvraag.html + style.css + aanvraag.js (repository
@@ -206,18 +206,6 @@
   font-size: 0.85rem;
   color: var(--tekst-zacht);
   margin: 0.3rem 0 0;
-}
-.av-root .datum-invoer {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  flex-wrap: wrap;
-}
-.av-root .datum-invoer input[type="text"] { flex: 1; min-width: 9rem; }
-.av-root .datum-invoer .kalender-invoer {
-  flex: 0 0 auto;
-  width: auto;
-  min-width: 8.6rem;
 }
 .av-root .akkoord-optie {
   display: flex;
@@ -488,11 +476,8 @@
 
         <div class="veld-groep">
           <label for="datumAanvraag">Datum aanvraag <span class="verplicht-ster">*</span></label>
-          <div class="datum-invoer">
-            <input type="text" id="datumAanvraag" name="datumAanvraag" placeholder="dd-mm-jjjj" inputmode="numeric" pattern="[0-9]{1,2}-[0-9]{1,2}-[0-9]{4}" autocomplete="off" required>
-            <input type="date" id="datumAanvraagKalender" class="kalender-invoer" aria-label="Kies de datum aanvraag via de kalender">
-          </div>
-          <p class="hulp-tekst">Typ de datum zelf in (dd-mm-jjjj) of kies hem via de kalender.</p>
+          <input type="text" id="datumAanvraag" name="datumAanvraag" readonly autocomplete="off" required>
+          <p class="hulp-tekst">Wordt automatisch ingevuld met de datum van vandaag.</p>
         </div>
 
         <div class="veld-groep">
@@ -512,16 +497,14 @@
 
         <div class="veld-groep">
           <label for="geboortedatum">Geboortedatum <span class="verplicht-ster">*</span></label>
-          <div class="datum-invoer">
-            <input type="text" id="geboortedatum" name="geboortedatum" placeholder="dd-mm-jjjj" inputmode="numeric" pattern="[0-9]{1,2}-[0-9]{1,2}-[0-9]{4}" autocomplete="off" required>
-            <input type="date" id="geboortedatumKalender" class="kalender-invoer" aria-label="Kies de geboortedatum via de kalender">
-          </div>
-          <p class="hulp-tekst">Typ de datum zelf in (dd-mm-jjjj) of kies hem via de kalender.</p>
+          <input type="text" id="geboortedatum" name="geboortedatum" placeholder="dd-mm-jjjj" inputmode="numeric" pattern="[0-9]{1,2}-[0-9]{1,2}-[0-9]{4}" autocomplete="off" required>
+          <p class="hulp-tekst">Typ de datum in als dd-mm-jjjj, bijvoorbeeld 19-06-1967.</p>
         </div>
 
         <div class="veld-groep">
           <label for="vispasnummer">Vispasnummer <span class="verplicht-ster">*</span></label>
-          <input type="text" id="vispasnummer" name="vispasnummer" autocomplete="off" required>
+          <input type="text" id="vispasnummer" name="vispasnummer" value="19845" inputmode="numeric" pattern="[0-9]+" autocomplete="off" required>
+          <p class="hulp-tekst">De cijfers 19845 staan vast; vul daarachter de rest van uw vispasnummer in (alleen cijfers).</p>
         </div>
 
         <div class="veld-groep">
@@ -1270,23 +1253,6 @@ function stelVandaagIn() {
   veld.value = d + "-" + m + "-" + j;
 }
 
-/* Gekozen datum uit de kalender (jjjj-mm-dd) overzetten naar het
-   handmatige veld (dd-mm-jjjj). */
-function koppelKalender(tekstId, kalenderId) {
-  var tekst = document.getElementById(tekstId);
-  var kal = document.getElementById(kalenderId);
-  if (!tekst || !kal) { return; }
-  kal.addEventListener("change", function () {
-    var v = kal.value;
-    if (!v) { return; }
-    var delen = v.split("-");
-    if (delen.length === 3) {
-      tekst.value = delen[2] + "-" + delen[1] + "-" + delen[0];
-      kal.value = "";
-    }
-  });
-}
-
 /* Zet automatisch streepjes tussen de datum tijdens het typen:
    19061967  ->  19-06-1967 */
 function zetDatumMasker(veld) {
@@ -1302,6 +1268,58 @@ function zetDatumMasker(veld) {
       resultaat = cijfers;
     }
     if (veld.value !== resultaat) { veld.value = resultaat; }
+  });
+}
+
+/* Het vispasnummer begint altijd met deze vaste cijfers. Dat deel mag
+   de aanvrager niet weghalen; er mogen alleen cijfers achter worden gezet. */
+var VISPAS_PREFIX = "19845";
+
+function zetVispasnummerVast() {
+  var veld = document.getElementById("vispasnummer");
+  if (!veld) { return; }
+  var prefix = VISPAS_PREFIX;
+
+  function alleenCijfersMetPrefix() {
+    var ruw = String(veld.value || "").replace(/\D/g, "");
+    if (ruw.indexOf(prefix) !== 0) { ruw = prefix + ruw; }
+    return ruw;
+  }
+
+  function herstel() {
+    var nieuw = alleenCijfersMetPrefix();
+    if (veld.value !== nieuw) {
+      veld.value = nieuw;
+      try { veld.setSelectionRange(nieuw.length, nieuw.length); } catch (e) { }
+    }
+    begrensSelectie();
+  }
+
+  /* De cursor mag niet vÃ³Ã³r het vaste deel staan; ook een selectie die
+     daarbinnen begint wordt naar rechts geknipt, zodat het vaste deel
+     niet weg te halen is. */
+  function begrensSelectie() {
+    try {
+      var s = veld.selectionStart;
+      var e = veld.selectionEnd;
+      if (s === null || s === undefined) { return; }
+      if (s < prefix.length) { veld.setSelectionRange(prefix.length, Math.max(e, prefix.length)); }
+    } catch (err) { }
+  }
+
+  herstel();
+  veld.addEventListener("input", herstel);
+  veld.addEventListener("focus", begrensSelectie);
+  veld.addEventListener("click", begrensSelectie);
+  veld.addEventListener("mouseup", begrensSelectie);
+  veld.addEventListener("keyup", begrensSelectie);
+  veld.addEventListener("select", begrensSelectie);
+  veld.addEventListener("selectstart", begrensSelectie);
+  veld.addEventListener("keydown", function (e) {
+    if (e.key !== "Backspace" && e.key !== "Delete") { return; }
+    if (veld.selectionStart !== veld.selectionEnd) { return; }
+    if (e.key === "Backspace" && veld.selectionStart <= prefix.length) { e.preventDefault(); }
+    if (e.key === "Delete" && veld.selectionStart < prefix.length) { e.preventDefault(); }
   });
 }
 
@@ -1625,6 +1643,21 @@ function controleerAanvraag() {
     return false;
   }
 
+  /* vispasnummer: alleen cijfers en met het vaste begindeel */
+  var vispas = document.getElementById("vispasnummer");
+  if (vispas) {
+    if (!/^[0-9]+$/.test(vispas.value)) {
+      toonStatus("Het vispasnummer mag alleen cijfers bevatten.", "fout");
+      vispas.focus();
+      return false;
+    }
+    if (vispas.value.indexOf(VISPAS_PREFIX) !== 0) {
+      toonStatus("Het vispasnummer moet beginnen met " + VISPAS_PREFIX + ".", "fout");
+      vispas.focus();
+      return false;
+    }
+  }
+
   var soort = document.querySelector('input[name="soortAanvraag"]:checked');
   if (!soort) {
     toonStatus("Maak een keuze: een nieuwe vergunning of een duplicaat vergunning.", "fout");
@@ -1781,13 +1814,11 @@ function koppelKlaarzetten() {
 
   stelVandaagIn();
 
-  /* kalender naar handmatig datumveld koppelen */
-  koppelKalender("datumAanvraag", "datumAanvraagKalender");
-  koppelKalender("geboortedatum", "geboortedatumKalender");
-
-  /* automatische streepjes in datumvelden */
-  zetDatumMasker(document.getElementById("datumAanvraag"));
+  /* automatische streepjes in het geboortedatumveld */
   zetDatumMasker(document.getElementById("geboortedatum"));
+
+  /* vast begindeel van het vispasnummer + alleen cijfers */
+  zetVispasnummerVast();
 
   /* nieuw/duplicaat: borg â‚¬25 (nieuw) versus â‚¬5-akkoord (duplicaat),
    en bij duplicaat is de invalidenkaart niet van toepassing */

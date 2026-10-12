@@ -120,7 +120,7 @@ $js
 </script>
 "@
 
-Set-Content -LiteralPath $out -Value $blok -Encoding UTF8 -NoNewline
+[System.IO.File]::WriteAllText($out, $blok, (New-Object System.Text.UTF8Encoding($false)))
 Copy-Item -LiteralPath $out -Destination $kopie -Force
 $f = Get-Item -LiteralPath $out
 "gebouwd: $($f.Name) $($f.Length) bytes (naar invoegcode.txt gekopieerd)"

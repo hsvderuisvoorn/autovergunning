@@ -58,11 +58,8 @@
 
         <div class="veld-groep">
           <label for="datumAanvraag">Datum aanvraag <span class="verplicht-ster">*</span></label>
-          <div class="datum-invoer">
-            <input type="text" id="datumAanvraag" name="datumAanvraag" placeholder="dd-mm-jjjj" inputmode="numeric" pattern="[0-9]{1,2}-[0-9]{1,2}-[0-9]{4}" autocomplete="off" required>
-            <input type="date" id="datumAanvraagKalender" class="kalender-invoer" aria-label="Kies de datum aanvraag via de kalender">
-          </div>
-          <p class="hulp-tekst">Typ de datum zelf in (dd-mm-jjjj) of kies hem via de kalender.</p>
+          <input type="text" id="datumAanvraag" name="datumAanvraag" readonly autocomplete="off" required>
+          <p class="hulp-tekst">Wordt automatisch ingevuld met de datum van vandaag.</p>
         </div>
 
         <div class="veld-groep">
@@ -82,16 +79,14 @@
 
         <div class="veld-groep">
           <label for="geboortedatum">Geboortedatum <span class="verplicht-ster">*</span></label>
-          <div class="datum-invoer">
-            <input type="text" id="geboortedatum" name="geboortedatum" placeholder="dd-mm-jjjj" inputmode="numeric" pattern="[0-9]{1,2}-[0-9]{1,2}-[0-9]{4}" autocomplete="off" required>
-            <input type="date" id="geboortedatumKalender" class="kalender-invoer" aria-label="Kies de geboortedatum via de kalender">
-          </div>
-          <p class="hulp-tekst">Typ de datum zelf in (dd-mm-jjjj) of kies hem via de kalender.</p>
+          <input type="text" id="geboortedatum" name="geboortedatum" placeholder="dd-mm-jjjj" inputmode="numeric" pattern="[0-9]{1,2}-[0-9]{1,2}-[0-9]{4}" autocomplete="off" required>
+          <p class="hulp-tekst">Typ de datum in als dd-mm-jjjj, bijvoorbeeld 19-06-1967.</p>
         </div>
 
         <div class="veld-groep">
           <label for="vispasnummer">Vispasnummer <span class="verplicht-ster">*</span></label>
-          <input type="text" id="vispasnummer" name="vispasnummer" autocomplete="off" required>
+          <input type="text" id="vispasnummer" name="vispasnummer" value="19845" inputmode="numeric" pattern="[0-9]+" autocomplete="off" required>
+          <p class="hulp-tekst">De cijfers 19845 staan vast; vul daarachter de rest van uw vispasnummer in (alleen cijfers).</p>
         </div>
 
         <div class="veld-groep">

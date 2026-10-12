@@ -570,23 +570,6 @@ function stelVandaagIn() {
   veld.value = d + "-" + m + "-" + j;
 }
 
-/* Gekozen datum uit de kalender (jjjj-mm-dd) overzetten naar het
-   handmatige veld (dd-mm-jjjj). */
-function koppelKalender(tekstId, kalenderId) {
-  var tekst = document.getElementById(tekstId);
-  var kal = document.getElementById(kalenderId);
-  if (!tekst || !kal) { return; }
-  kal.addEventListener("change", function () {
-    var v = kal.value;
-    if (!v) { return; }
-    var delen = v.split("-");
-    if (delen.length === 3) {
-      tekst.value = delen[2] + "-" + delen[1] + "-" + delen[0];
-      kal.value = "";
-    }
-  });
-}
-
 /* Zet automatisch streepjes tussen de datum tijdens het typen:
    19061967  ->  19-06-1967 */
 function zetDatumMasker(veld) {
@@ -602,6 +585,58 @@ function zetDatumMasker(veld) {
       resultaat = cijfers;
     }
     if (veld.value !== resultaat) { veld.value = resultaat; }
+  });
+}
+
+/* Het vispasnummer begint altijd met deze vaste cijfers. Dat deel mag
+   de aanvrager niet weghalen; er mogen alleen cijfers achter worden gezet. */
+var VISPAS_PREFIX = "19845";
+
+function zetVispasnummerVast() {
+  var veld = document.getElementById("vispasnummer");
+  if (!veld) { return; }
+  var prefix = VISPAS_PREFIX;
+
+  function alleenCijfersMetPrefix() {
+    var ruw = String(veld.value || "").replace(/\D/g, "");
+    if (ruw.indexOf(prefix) !== 0) { ruw = prefix + ruw; }
+    return ruw;
+  }
+
+  function herstel() {
+    var nieuw = alleenCijfersMetPrefix();
+    if (veld.value !== nieuw) {
+      veld.value = nieuw;
+      try { veld.setSelectionRange(nieuw.length, nieuw.length); } catch (e) { }
+    }
+    begrensSelectie();
+  }
+
+  /* De cursor mag niet vóór het vaste deel staan; ook een selectie die
+     daarbinnen begint wordt naar rechts geknipt, zodat het vaste deel
+     niet weg te halen is. */
+  function begrensSelectie() {
+    try {
+      var s = veld.selectionStart;
+      var e = veld.selectionEnd;
+      if (s === null || s === undefined) { return; }
+      if (s < prefix.length) { veld.setSelectionRange(prefix.length, Math.max(e, prefix.length)); }
+    } catch (err) { }
+  }
+
+  herstel();
+  veld.addEventListener("input", herstel);
+  veld.addEventListener("focus", begrensSelectie);
+  veld.addEventListener("click", begrensSelectie);
+  veld.addEventListener("mouseup", begrensSelectie);
+  veld.addEventListener("keyup", begrensSelectie);
+  veld.addEventListener("select", begrensSelectie);
+  veld.addEventListener("selectstart", begrensSelectie);
+  veld.addEventListener("keydown", function (e) {
+    if (e.key !== "Backspace" && e.key !== "Delete") { return; }
+    if (veld.selectionStart !== veld.selectionEnd) { return; }
+    if (e.key === "Backspace" && veld.selectionStart <= prefix.length) { e.preventDefault(); }
+    if (e.key === "Delete" && veld.selectionStart < prefix.length) { e.preventDefault(); }
   });
 }
 
@@ -925,6 +960,21 @@ function controleerAanvraag() {
     return false;
   }
 
+  /* vispasnummer: alleen cijfers en met het vaste begindeel */
+  var vispas = document.getElementById("vispasnummer");
+  if (vispas) {
+    if (!/^[0-9]+$/.test(vispas.value)) {
+      toonStatus("Het vispasnummer mag alleen cijfers bevatten.", "fout");
+      vispas.focus();
+      return false;
+    }
+    if (vispas.value.indexOf(VISPAS_PREFIX) !== 0) {
+      toonStatus("Het vispasnummer moet beginnen met " + VISPAS_PREFIX + ".", "fout");
+      vispas.focus();
+      return false;
+    }
+  }
+
   var soort = document.querySelector('input[name="soortAanvraag"]:checked');
   if (!soort) {
     toonStatus("Maak een keuze: een nieuwe vergunning of een duplicaat vergunning.", "fout");
@@ -1081,13 +1131,11 @@ function koppelKlaarzetten() {
 
   stelVandaagIn();
 
-  /* kalender naar handmatig datumveld koppelen */
-  koppelKalender("datumAanvraag", "datumAanvraagKalender");
-  koppelKalender("geboortedatum", "geboortedatumKalender");
-
-  /* automatische streepjes in datumvelden */
-  zetDatumMasker(document.getElementById("datumAanvraag"));
+  /* automatische streepjes in het geboortedatumveld */
   zetDatumMasker(document.getElementById("geboortedatum"));
+
+  /* vast begindeel van het vispasnummer + alleen cijfers */
+  zetVispasnummerVast();
 
   /* nieuw/duplicaat: borg €25 (nieuw) versus €5-akkoord (duplicaat),
    en bij duplicaat is de invalidenkaart niet van toepassing */
