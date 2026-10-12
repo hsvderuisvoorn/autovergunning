@@ -362,12 +362,13 @@ function stuurBetaalmelding(blad, rij) {
 /* Bouwt de HTML-versie van een mail: gekleurde kop met daaronder een
    tabel met de gegevens. Wordt naast de platte tekst meegestuurd, zodat
    elke mailclient iets toonbaars heeft. */
-function mailHtml(kop, intro, rijen) {
+function mailHtml(kop, intro, rijen, aanhef, slot) {
   var html = "<div style=\"font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#0F0F0F;line-height:1.5\">"
     + "<div style=\"background:#124f76;color:#ffffff;padding:12px 16px;border-radius:6px 6px 0 0\">"
     + "<strong style=\"font-size:16px\">" + escHtml(kop) + "</strong>"
     + "<br><span style=\"font-size:13px\">HSV de Ruisvoorn Helden</span></div>"
     + "<div style=\"border:1px solid #d9e2e9;border-top:0;padding:16px;border-radius:0 0 6px 6px\">"
+    + (aanhef ? "<p style=\"margin:0 0 10px\">" + escHtml(aanhef) + "</p>" : "")
     + "<p style=\"margin:0 0 14px\">" + escHtml(intro) + "</p>"
     + "<table style=\"border-collapse:collapse;width:100%;max-width:560px;font-size:14px\">";
   for (var i = 0; i < rijen.length; i++) {
@@ -378,7 +379,13 @@ function mailHtml(kop, intro, rijen) {
       + "<td style=\"padding:6px 10px 6px 0;color:#4a5b66;vertical-align:top;white-space:nowrap\">" + escHtml(naam) + "</td>"
       + "<td style=\"padding:6px 0;font-weight:bold\">" + escHtml(String(waarde)) + "</td></tr>";
   }
-  html += "</table></div></div>";
+  html += "</table>";
+  if (slot) {
+    for (var s = 0; s < slot.length; s++) {
+      html += "<p style=\"margin:14px 0 0\">" + escHtml(slot[s]) + "</p>";
+    }
+  }
+  html += "</div></div>";
   return html;
 }
 
@@ -431,36 +438,44 @@ function stuurBevestigingsmail(rij, betaald) {
   var naam = [rij[3], rij[4]].join(" ")
     .replace(/\s+/g, " ").trim();
   var referentie = String(rij[15] || "").trim() || "-";
-  var regels = [];
-
-  regels.push("Beste " + (naam || "heer/mevrouw") + ",");
-  regels.push("");
-  regels.push(duplicaat
-    ? "Wij hebben uw aanvraag voor een duplicaat Autovergunning van Hengelsportvereniging De Ruisvoorn ontvangen en uw betaling van €5 is in goede orde ontvangen."
-    : "Wij hebben uw aanvraag voor een Autovergunning van Hengelsportvereniging De Ruisvoorn in goede orde ontvangen.");
-  regels.push("");
-  regels.push("Soort aanvraag:   " + (duplicaat ? "duplicaat" : "nieuw"));
-  regels.push("Datum aanvraag:   " + String(rij[0] || ""));
-  regels.push("Referentie:       " + referentie);
-  regels.push("");
-  if (duplicaat) {
-    regels.push("Wij sturen de duplicaat zo snel mogelijk toe. U hoeft verder niets te doen.");
-  } else {
-    regels.push("De definitieve toekenning wordt besloten door het bestuur op de eerstvolgende bestuursvergadering, op basis van het aantal beschikbare sleutels. De borg van €25 voor de sleutel wordt pas bij toekenning in rekening gebracht.");
-  }
-  regels.push("");
-  regels.push("Heeft u vragen? Antwoord op dit bericht of stuur een mail naar secretariaat@hsvderuisvoorn.nl.");
-  regels.push("");
-  regels.push("Met vriendelijke groet,");
-  regels.push("Hengelsportvereniging De Ruisvoorn");
 
   var onderwerp = (duplicaat
     ? "Betaald: uw duplicaat Autovergunning"
     : "Ontvangen: uw aanvraag Autovergunning")
     + " (referentie " + referentie + ")";
 
+  var aanhef = "Beste " + (naam || "heer/mevrouw") + ",";
+  var intro = duplicaat
+    ? "Wij hebben uw aanvraag voor een duplicaat Autovergunning van Hengelsportvereniging De Ruisvoorn ontvangen en uw betaling van €5 is in goede orde ontvangen."
+    : "Wij hebben uw aanvraag voor een Autovergunning van Hengelsportvereniging De Ruisvoorn in goede orde ontvangen.";
+
+  var gegevens = [
+    ["Soort aanvraag", duplicaat ? "Duplicaat vergunning" : "Nieuwe vergunning"],
+    ["Referentie", referentie],
+    ["Datum aanvraag", datumTekst(rij[0])]
+  ];
+
+  var slot = [];
+  if (duplicaat) {
+    slot.push("Wij sturen de duplicaat zo snel mogelijk toe. U hoeft verder niets te doen.");
+  } else {
+    slot.push("De definitieve toekenning wordt besloten door het bestuur op de eerstvolgende bestuursvergadering, op basis van het aantal beschikbare sleutels. De borg van €25 voor de sleutel wordt pas bij toekenning in rekening gebracht.");
+  }
+  slot.push("Heeft u vragen? Antwoord op dit bericht of stuur een mail naar secretariaat@hsvderuisvoorn.nl.");
+  slot.push("Met vriendelijke groet,");
+  slot.push("Hengelsportvereniging De Ruisvoorn");
+
+  var tekst = aanhef + "\n\n" + intro + "\n\n"
+    + gegevens.map(function (g) { return g[0] + ": " + (g[1] || "-"); }).join("\n")
+    + "\n\n" + slot.join("\n\n");
+
   try {
-    MailApp.sendEmail({ to: adres, subject: onderwerp, body: regels.join("\n") });
+    MailApp.sendEmail({
+      to: adres,
+      subject: onderwerp,
+      body: tekst,
+      htmlBody: mailHtml(onderwerp, intro, gegevens, aanhef, slot)
+    });
     return true;
   } catch (foutMail) {
     Logger.log("bevestigingsmail naar " + adres + " niet verstuurd: "
@@ -492,6 +507,31 @@ function verwerkBetaalMelding(json) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+/* Eén betaalafhandeling tegelijk. Mollie stuurt de webhook soms
+   meerdere keren en de aanvraagpagina vraagt de status ook nog op;
+   zonder deze rem kan dezelfde betaling twee keer verwerkt worden en
+   krijgt de aanvrager twee bevestigingsmails (en het secretariaat twee
+   meldingen). De teller voorkomt dat dezelfde uitvoering zichzelf
+   blokkeert, want markeerBetalingGemeld roept meldBetaalstatus aan.
+   Lukt het slot niet, dan gaat de afhandeling door: één keer te veel
+   mailen is vervelend, een betaling niet verwerken is erger. */
+var BETAAL_SLOT_DIEPTE = 0;
+function metBetaalSlot(functie) {
+  if (BETAAL_SLOT_DIEPTE > 0) { return functie(); }
+  var slot = null;
+  try {
+    slot = LockService.getScriptLock();
+    if (slot && !slot.tryLock(20000)) { slot = null; }
+  } catch (foutSlot) { slot = null; }
+  BETAAL_SLOT_DIEPTE++;
+  try {
+    return functie();
+  } finally {
+    BETAAL_SLOT_DIEPTE--;
+    if (slot) { try { slot.releaseLock(); } catch (foutSlot2) {} }
+  }
+}
+
 /* Nummer van de laatste rij met deze referentie in kolom P, of 0.
    Eerst alleen kolom P uitlezen; dat is één smalle lezing en daarmee
    veel sneller dan het hele tabblad doorlopen. */
@@ -510,6 +550,9 @@ function zoekRijMetReferentie(blad, ref) {
 /* Zet 'ja' + tijdstip (kolommen Q en R) in de rij met deze
    betaalreferentie (kolom P). Geeft terug of de rij gevonden is. */
 function markeerBetalingGemeld(blad, ref) {
+  return metBetaalSlot(function () { return markeerBetalingGemeldBinnen(blad, ref); });
+}
+function markeerBetalingGemeldBinnen(blad, ref) {
   var rij = zoekRijMetReferentie(blad, ref);
   if (!rij) { return false; }
   var wasAlBetaald = String(blad.getRange(rij, 17).getValue() || "")
@@ -563,6 +606,9 @@ function markeerBetalingGemeld(blad, ref) {
    Kolom T ("Mail verstuurd") is de rem: is die al gezet, dan gaat er
    nooit een tweede mail uit. Geeft true terug als er gemaild is. */
 function meldBetaalstatus(blad, ref, uitkomst) {
+  return metBetaalSlot(function () { return meldBetaalstatusBinnen(blad, ref, uitkomst); });
+}
+function meldBetaalstatusBinnen(blad, ref, uitkomst) {
   var rij = zoekRijMetReferentie(blad, ref);
   if (!rij) { return false; }
   if (String(blad.getRange(rij, 20).getValue() || "").trim()) { return false; }
