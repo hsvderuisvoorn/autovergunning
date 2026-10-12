@@ -186,6 +186,7 @@ function controleerBetaalstatus() {
   if (knopSite) { knopSite.hidden = true; }
   var form = document.getElementById("aanvraagForm");
   if (form) { form.hidden = true; form.style.display = "none"; }
+  toonIntro(false);
   if (!ref) {
     /* Geen referentie: de betaling kan niet worden opgezocht. Laat dat
        duidelijk zien in plaats van stil het formulier te tonen. */
@@ -453,6 +454,15 @@ function controleerAanvraag() {
   return true;
 }
 
+/* De intro hoort bij het formulier. Zodra het formulier plaatsmaakt
+   voor het terugblok of de bevestigingspagina, gaat de intro mee weg. */
+function toonIntro(tonen) {
+  var intro = document.querySelector(".intro-blok");
+  if (!intro) { return; }
+  intro.hidden = !tonen;
+  intro.style.display = tonen ? "" : "none";
+}
+
 /* De volledige bevestigingspagina tonen als de betaling binnen is. */
 function toonBetaaldPagina() {
   var form = document.getElementById("aanvraagForm");
@@ -460,6 +470,7 @@ function toonBetaaldPagina() {
   var sectie = document.getElementById("geluktPagina");
   if (terug) { terug.hidden = true; terug.style.display = "none"; }
   if (form) { form.hidden = true; form.style.display = "none"; }
+  toonIntro(false);
   if (sectie) { sectie.hidden = false; sectie.style.display = "block"; }
   var titel = document.getElementById("bedanktTitel");
   if (titel) { titel.textContent = "Betaling gelukt"; }
@@ -478,6 +489,7 @@ function toonGeluktPagina(antwoord) {
   var sectie = document.getElementById("geluktPagina");
   if (sectie) { sectie.hidden = false; sectie.style.display = "block"; }
   if (form) { form.hidden = true; form.style.display = "none"; }
+  toonIntro(false);
 
   var titel = document.getElementById("bedanktTitel");
   if (titel) { titel.textContent = "Aanvraag ontvangen"; }
